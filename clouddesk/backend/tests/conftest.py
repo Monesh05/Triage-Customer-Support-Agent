@@ -105,3 +105,43 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 def new_id() -> uuid.UUID:
     """Convenience helper for generating a random id in tests (e.g. a not-found lookup)."""
     return uuid.uuid4()
+
+
+@pytest.fixture
+async def committed_session() -> AsyncGenerator[AsyncSession, None]:
+    """A session bound to the app's real engine (app.database.engine.AsyncSessionFactory),
+    NOT a rolled-back-per-test transaction.
+
+    The Phase 2 tool layer (app.tools.*) opens its own session via
+    app.database.session.get_session(), on a separate DB connection from the `db_session`
+    fixture. Because Postgres connections don't see each other's uncommitted rows, tool
+    tests must commit real data through this fixture rather than `db_session`. Any
+    Organization created by the test is deleted (cascading to its customers/accounts/
+    subscriptions/etc. via ON DELETE CASCADE) during teardown to avoid leaking rows across
+    the test session.
+
+    The module-level `engine`/`AsyncSessionFactory` in app.database.engine are created once
+    at import time, but pytest-asyncio gives each test its own event loop, and asyncpg
+    connections cannot cross event loops (same constraint `db_session` works around with a
+    per-test engine). Disposing the shared engine's pool before and after the test forces
+    both this fixture's session AND any session app.tools.* opens via get_session() to open
+    fresh connections bound to the CURRENT test's loop.
+    """
+    from sqlalchemy import delete as sa_delete
+
+    from app.database.engine import AsyncSessionFactory, engine
+    from app.models.organization import Organization
+
+    await engine.dispose()
+    created_org_ids: list[uuid.UUID] = []
+    try:
+        async with AsyncSessionFactory() as session:
+            session.info["created_org_ids"] = created_org_ids
+            try:
+                yield session
+            finally:
+                for org_id in created_org_ids:
+                    await session.execute(sa_delete(Organization).where(Organization.id == org_id))
+                await session.commit()
+    finally:
+        await engine.dispose()
