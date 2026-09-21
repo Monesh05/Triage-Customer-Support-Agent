@@ -1,0 +1,42 @@
+# docker-compose.yml
+# Purpose: Local development infrastructure for CloudDesk Phase 1 — PostgreSQL database
+#          (application DB), plus the FastAPI backend service for convenience.
+# Author: CloudDesk Team
+# Date: 2026-09-21
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    container_name: clouddesk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clouddesk
+      POSTGRES_PASSWORD: clouddesk
+      POSTGRES_DB: clouddesk
+    ports:
+      - "5433:5432"
+    volumes:
+      - clouddesk_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clouddesk -d clouddesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./clouddesk/backend
+      dockerfile: Dockerfile
+    container_name: clouddesk-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://clouddesk:clouddesk@postgres:5432/clouddesk
+      APP_ENV: development
+    ports:
+      - "8000:8000"
+
+volumes:
+  clouddesk_postgres_data:
