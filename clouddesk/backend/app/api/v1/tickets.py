@@ -1,7 +1,8 @@
 # app/api/v1/tickets.py
-# Purpose: REST endpoints for retrieving and creating support tickets (spec section 7).
+# Purpose: REST endpoints for retrieving and creating support tickets (spec section 7), plus
+#          (Phase 9, spec section 26) a cross-customer ticket list for the Support Console.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import uuid
 
@@ -10,11 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db_session
 from app.schemas.ticket import SupportTicketCreate, SupportTicketResponse
-from app.services.ticket_service import create_ticket, get_ticket_by_id
+from app.services.ticket_service import create_ticket, get_ticket_by_id, list_all_tickets
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 _TICKET_CREATE_ACTOR = "api:tickets.create"
+
+
+@router.get("", response_model=list[SupportTicketResponse])
+async def read_all_tickets(session: AsyncSession = Depends(get_db_session)) -> list[SupportTicketResponse]:
+    """List support tickets across all customers, most recent first (Support Console Tickets
+    list, spec section 26)."""
+    tickets = await list_all_tickets(session)
+    return [SupportTicketResponse.model_validate(t) for t in tickets]
 
 
 @router.get("/{ticket_id}", response_model=SupportTicketResponse)

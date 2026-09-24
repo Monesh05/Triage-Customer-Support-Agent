@@ -1,7 +1,7 @@
 # app/services/ticket_service.py
 # Purpose: Business logic for support ticket retrieval and creation.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import logging
 import uuid
@@ -41,6 +41,21 @@ async def list_tickets_for_customer(session: AsyncSession, customer_id: uuid.UUI
         select(SupportTicket)
         .where(SupportTicket.customer_id == customer_id)
         .order_by(SupportTicket.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+DEFAULT_TICKET_LIST_LIMIT: int = 200
+
+
+async def list_all_tickets(session: AsyncSession, limit: int = DEFAULT_TICKET_LIST_LIMIT) -> list[SupportTicket]:
+    """List support tickets across all customers, most recent first (spec section 26: the
+    Support Console's Tickets list). Capped at `limit` rows — the console is an internal triage
+    view, not a full export, so an unbounded query here would be an easy way to blow up memory
+    as ticket volume grows.
+    """
+    result = await session.execute(
+        select(SupportTicket).order_by(SupportTicket.created_at.desc()).limit(limit)
     )
     return list(result.scalars().all())
 
