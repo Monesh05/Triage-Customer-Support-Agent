@@ -30,9 +30,16 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://clouddesk:clouddesk@localhost:5432/clouddesk"
     )
 
-    # Placeholders for later phases (LLM gateway via OpenRouter). Not used in Phase 1.
+    # LLM gateway configuration (Phase 3+). "openai" talks to OpenAI's API directly;
+    # "openrouter" talks to OpenRouter as a model gateway. Both use an OpenAI-compatible
+    # client, so switching providers only changes base_url/api_key/model, not call sites.
+    llm_provider: str = "openrouter"
+
     openrouter_api_key: str = ""
     openrouter_model: str = ""
+
+    openai_api_key: str = ""
+    openai_model: str = ""
 
     account_lockout_threshold: int = DEFAULT_ACCOUNT_LOCKOUT_THRESHOLD
 
