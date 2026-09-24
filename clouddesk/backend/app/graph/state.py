@@ -1,12 +1,16 @@
 # app/graph/state.py
 # Purpose: The shared LangGraph state (spec section 18) threaded through every node of the
-#          support workflow. Extends the spec's example TypedDict with three small,
+#          support workflow. Extends the spec's example TypedDict with four small,
 #          justified additions: `escalation_result` (the Escalation Agent's structured
 #          handoff, spec section 17), `final_response` (the customer-facing text produced
-#          once the workflow reaches finalize/escalation), and `thread_id` (Phase 5, spec
+#          once the workflow reaches finalize/escalation), `thread_id` (Phase 5, spec
 #          section 22: the LangGraph checkpoint thread id for this run, so a caller/API can
-#          correlate a paused run with the persisted approval record and resume it later) —
-#          all read by API/UI callers that only see the final state, not individual node outputs.
+#          correlate a paused run with the persisted approval record and resume it later), and
+#          `ticket_id` (Phase 7, spec sections 24/26: the `support_tickets` row this run's
+#          agent-observability trace records are attached to, auto-created at workflow start —
+#          see app.graph.graph.run_support_workflow — and `None` when that best-effort creation
+#          was not possible, e.g. an unrecognized customer id) — all read by API/UI callers that
+#          only see the final state, not individual node outputs.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -63,6 +67,7 @@ class SupportState(TypedDict):
     escalation_result: dict[str, object] | None
     final_response: str | None
     thread_id: str
+    ticket_id: str | None
 
 
 def build_initial_state(
@@ -70,11 +75,14 @@ def build_initial_state(
     customer_message: str,
     conversation_history: list[str] | None = None,
     thread_id: str | None = None,
+    ticket_id: str | None = None,
 ) -> SupportState:
     """Construct a fresh SupportState for a new support-workflow invocation.
 
     `thread_id` identifies the LangGraph checkpoint thread (Phase 5); a fresh one is generated
     when not supplied, so every top-level call to `run_support_workflow` gets its own thread.
+    `ticket_id` (Phase 7) is the `support_tickets.id` (as a string) this run's trace records
+    should attach to, or `None` when no ticket could be auto-created for this run.
     """
     return SupportState(
         customer_id=customer_id,
@@ -97,4 +105,18 @@ def build_initial_state(
         escalation_result=None,
         final_response=None,
         thread_id=thread_id or str(uuid.uuid4()),
+        ticket_id=ticket_id,
     )
+
+
+def parse_ticket_uuid(state: SupportState) -> uuid.UUID | None:
+    """Best-effort parse of `state["ticket_id"]` for the Phase 7 tracer (app.graph.nodes /
+    app.graph.resolution_nodes); `None` if there is no ticket (e.g. auto-creation was not
+    possible for this run's customer id, see app.graph.graph)."""
+    ticket_id = state.get("ticket_id")
+    if not ticket_id:
+        return None
+    try:
+        return uuid.UUID(ticket_id)
+    except ValueError:
+        return None

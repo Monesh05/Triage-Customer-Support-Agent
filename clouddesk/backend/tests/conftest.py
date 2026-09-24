@@ -36,6 +36,7 @@ from app.database.session import get_db_session
 from app.main import app
 from app.models import (  # noqa: F401  (register all models on Base.metadata)
     Account,
+    AgentRun,
     ApiKey,
     AuditLog,
     Customer,

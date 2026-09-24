@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from app.llm.client import get_llm_client
 from app.llm.structured import AgentError, get_structured_completion
+from app.observability.tracer import record_tool_call
 from app.tools.base import ToolResult
 
 logger = logging.getLogger("clouddesk.agents")
@@ -63,16 +64,26 @@ class ToolSpec:
 async def _execute_tool_call(
     tool_call: ChatCompletionMessageToolCall, tools_by_name: dict[str, ToolSpec]
 ) -> str:
-    """Run one model-requested tool call against its real, allow-listed Phase 2 handler."""
+    """Run one model-requested tool call against its real, allow-listed Phase 2 handler.
+
+    Also reports the call (redacted/truncated, per app.observability.tracer) to whichever
+    `trace_agent_run` block is currently active, if any — a no-op when called outside one (e.g.
+    every agent unit test that calls `run_billing_agent` etc. directly).
+    """
     spec = tools_by_name.get(tool_call.function.name)
     if spec is None:
-        return json.dumps({"success": False, "error": f"Unknown tool: {tool_call.function.name}"})
+        result_json = json.dumps({"success": False, "error": f"Unknown tool: {tool_call.function.name}"})
+        record_tool_call(tool_call.function.name, {}, result_json)
+        return result_json
+    args: dict[str, object] = {}
     try:
         args = json.loads(tool_call.function.arguments or "{}")
         result = await spec.handler(**args)
+        result_json = result.model_dump_json()
     except Exception as exc:  # noqa: BLE001 - last-resort guard; handlers already wrap errors
-        return json.dumps({"success": False, "error": f"Tool execution failed: {exc}"})
-    return result.model_dump_json()
+        result_json = json.dumps({"success": False, "error": f"Tool execution failed: {exc}"})
+    record_tool_call(tool_call.function.name, args, result_json)
+    return result_json
 
 
 def _assistant_message_dict(message: object) -> ChatCompletionMessageParam:

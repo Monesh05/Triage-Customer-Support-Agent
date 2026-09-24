@@ -7,9 +7,11 @@
 #          interruption/checkpoint mechanisms") so `await_human_decision_node`'s `interrupt()`
 #          call actually pauses a run rather than merely reporting "approval needed" after fully
 #          finishing. `run_support_workflow` starts a new run (and pending actions arising from it
-#          are persisted via app.services.approval_service); `resume_support_workflow` continues a
-#          previously paused run once a human decision has been recorded for every one of its
-#          pending actions.
+#          are persisted via app.services.approval_service, and a `support_tickets` row is
+#          best-effort auto-created up front per Phase 7 — see `_create_ticket_if_possible` —
+#          since a trace with no ticket to hang off of is much less useful, spec sections 7/26);
+#          `resume_support_workflow` continues a previously paused run once a human decision has
+#          been recorded for every one of its pending actions.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -23,13 +25,17 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
 from app.database.session import get_session
-from app.graph import nodes
+from app.graph import nodes, resolution_nodes
 from app.graph.routing import route_after_finalize, route_after_qa, route_after_triage
 from app.graph.state import SupportState, build_initial_state
-from app.services import approval_service
+from app.models.enums import TicketPriority
+from app.services import approval_service, ticket_service
 from app.services.exceptions import InvalidStateError
 
 logger = logging.getLogger("clouddesk.graph")
+
+TICKET_SUBJECT_MAX_LENGTH: int = 117  # Column is String(255); leaves room for an added "...".
+WORKFLOW_TICKET_ACTOR: str = "system:support_workflow"
 
 SPECIALIST_NODES: tuple[str, ...] = ("billing", "account", "technical", "product")
 
@@ -48,11 +54,11 @@ def _register_nodes(graph: StateGraph[SupportState]) -> None:
     graph.add_node("account", nodes.account_node)
     graph.add_node("technical", nodes.technical_node)
     graph.add_node("product", nodes.product_node)
-    graph.add_node("resolution", nodes.resolution_node)
-    graph.add_node("qa", nodes.qa_node)
-    graph.add_node("escalation", nodes.escalation_node)
-    graph.add_node("finalize", nodes.finalize_node)
-    graph.add_node("await_human_decision", nodes.await_human_decision_node)
+    graph.add_node("resolution", resolution_nodes.resolution_node)
+    graph.add_node("qa", resolution_nodes.qa_node)
+    graph.add_node("escalation", resolution_nodes.escalation_node)
+    graph.add_node("finalize", resolution_nodes.finalize_node)
+    graph.add_node("await_human_decision", resolution_nodes.await_human_decision_node)
 
 
 def _wire_edges(graph: StateGraph[SupportState]) -> None:
@@ -129,6 +135,43 @@ async def _persist_pending_actions(customer_id: str, thread_id: str, state: Supp
             )
 
 
+def _derive_ticket_subject(customer_message: str) -> str:
+    """A short ticket subject line from the raw customer message (spec section 5's `subject`
+    is a required, length-bounded field; the full message is kept verbatim as `description`)."""
+    stripped = customer_message.strip() or "Support request"
+    if len(stripped) <= TICKET_SUBJECT_MAX_LENGTH:
+        return stripped
+    return stripped[:TICKET_SUBJECT_MAX_LENGTH].rstrip() + "..."
+
+
+async def _create_ticket_if_possible(customer_id: str, customer_message: str) -> str | None:
+    """Best-effort auto-create a `SupportTicket` for this workflow run (Phase 7, spec sections
+    7/24/26: tickets are the top-level object a trace hangs off of, and none was ever created for
+    a support-workflow run before this phase). Mirrors `_persist_pending_actions`'s non-fatal
+    handling of a non-UUID/unknown customer id: this bookkeeping must never block or crash the
+    actual support workflow, so any failure here just means `ticket_id` stays `None`.
+    """
+    try:
+        customer_uuid = uuid.UUID(customer_id)
+    except ValueError:
+        logger.warning("skip_ticket_autocreate reason=invalid_customer_id")
+        return None
+    try:
+        async with get_session() as session:
+            ticket = await ticket_service.create_ticket(
+                session,
+                customer_uuid,
+                subject=_derive_ticket_subject(customer_message),
+                description=customer_message,
+                priority=TicketPriority.MEDIUM,
+                actor=WORKFLOW_TICKET_ACTOR,
+            )
+            return str(ticket.id)
+    except Exception:  # noqa: BLE001 - see docstring: never block the workflow on this
+        logger.exception("ticket_autocreate_failed customer_id=%s", customer_id)
+        return None
+
+
 async def run_support_workflow(
     customer_id: str,
     customer_message: str,
@@ -140,7 +183,8 @@ async def run_support_workflow(
     row has already been created for each pending action (spec section 22).
     """
     logger.info("support_workflow_start customer_id=%s", customer_id)
-    initial_state = build_initial_state(customer_id, customer_message, conversation_history)
+    ticket_id = await _create_ticket_if_possible(customer_id, customer_message)
+    initial_state = build_initial_state(customer_id, customer_message, conversation_history, ticket_id=ticket_id)
     thread_id = initial_state["thread_id"]
     graph = get_support_graph()
     final_state: SupportState = await graph.ainvoke(initial_state, config=_thread_config(thread_id))
@@ -160,7 +204,7 @@ async def resume_support_workflow(thread_id: str, decision: dict[str, Any]) -> S
 
     `decision` is `{"actions": [{"action_id": str, "status": "approved"|"rejected", ...}, ...]}`,
     matching every entry the paused state's `pending_actions` produced (see
-    app.graph.nodes.await_human_decision_node).
+    app.graph.resolution_nodes.await_human_decision_node).
 
     Raises:
         InvalidStateError: if `thread_id` has no run currently paused waiting on a decision.

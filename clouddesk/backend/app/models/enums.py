@@ -2,6 +2,8 @@
 # Purpose: Central definitions of all domain enums used by CloudDesk ORM models and
 #          Pydantic schemas (status/severity/priority fields), per spec section 5. Extended in
 #          Phase 5 with `ApprovalStatus` and human-in-the-loop audit action types (spec 22, 27).
+#          Extended in Phase 7 with `AgentRunStatus` for the agent-observability trace records
+#          (spec section 24).
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -107,3 +109,10 @@ class ApprovalStatus(str, enum.Enum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class AgentRunStatus(str, enum.Enum):
+    """Outcome of one recorded agent/node execution (spec section 24: Agent Observability)."""
+
+    SUCCESS = "success"
+    FAILURE = "failure"

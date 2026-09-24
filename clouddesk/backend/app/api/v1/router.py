@@ -16,6 +16,7 @@ from app.api.v1 import (
     refunds,
     subscriptions,
     tickets,
+    traces,
     usage,
 )
 from app.api.v1 import customers as customers_module
@@ -33,3 +34,4 @@ api_router.include_router(tickets.router)
 api_router.include_router(refunds.router)
 api_router.include_router(entitlements.router)
 api_router.include_router(approvals.router)
+api_router.include_router(traces.router)

@@ -69,8 +69,8 @@ def _qa_approved() -> QAAgentResult:
 def _patch_agents(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.graph.nodes.run_triage_agent", AsyncMock(return_value=_triage()))
     monkeypatch.setattr("app.graph.nodes.run_billing_agent", AsyncMock(return_value=_billing_requires_approval()))
-    monkeypatch.setattr("app.graph.nodes.run_resolution_agent", AsyncMock(return_value=_resolution()))
-    monkeypatch.setattr("app.graph.nodes.run_qa_agent", AsyncMock(return_value=_qa_approved()))
+    monkeypatch.setattr("app.graph.resolution_nodes.run_resolution_agent", AsyncMock(return_value=_resolution()))
+    monkeypatch.setattr("app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=_qa_approved()))
 
 
 async def test_workflow_pauses_and_does_not_produce_a_resolved_response(monkeypatch: pytest.MonkeyPatch) -> None:

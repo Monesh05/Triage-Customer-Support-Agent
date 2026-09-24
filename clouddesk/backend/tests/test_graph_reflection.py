@@ -61,7 +61,7 @@ async def test_qa_rejects_then_approves_retries_resolution_once(monkeypatch: pyt
     """QA fails on the first pass, approves on the second: resolution runs twice, ends finalized."""
     _patch_triage_and_product(monkeypatch)
     resolution_mock = AsyncMock(return_value=ResolutionAgentResult.model_validate(RESOLUTION_PAYLOAD))
-    monkeypatch.setattr("app.graph.nodes.run_resolution_agent", resolution_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_resolution_agent", resolution_mock)
 
     qa_mock = AsyncMock(
         side_effect=[
@@ -69,7 +69,7 @@ async def test_qa_rejects_then_approves_retries_resolution_once(monkeypatch: pyt
             QAAgentResult.model_validate(_qa_payload(True)),
         ]
     )
-    monkeypatch.setattr("app.graph.nodes.run_qa_agent", qa_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_qa_agent", qa_mock)
 
     final_state = await run_support_workflow("cust-1", "Does Pro include API access?")
 
@@ -86,9 +86,9 @@ async def test_qa_repeatedly_failing_stops_at_max_iterations_and_escalates(
     """QA never approves: the graph must stop after MAX_ITERATIONS resolution attempts, not hang."""
     _patch_triage_and_product(monkeypatch)
     resolution_mock = AsyncMock(return_value=ResolutionAgentResult.model_validate(RESOLUTION_PAYLOAD))
-    monkeypatch.setattr("app.graph.nodes.run_resolution_agent", resolution_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_resolution_agent", resolution_mock)
     qa_mock = AsyncMock(return_value=QAAgentResult.model_validate(_qa_payload(False)))
-    monkeypatch.setattr("app.graph.nodes.run_qa_agent", qa_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_qa_agent", qa_mock)
 
     escalation_mock = AsyncMock(
         return_value=EscalationAgentResult(
@@ -104,7 +104,7 @@ async def test_qa_repeatedly_failing_stops_at_max_iterations_and_escalates(
             conversation_history=[],
         )
     )
-    monkeypatch.setattr("app.graph.nodes.run_escalation_agent", escalation_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_escalation_agent", escalation_mock)
 
     final_state = await run_support_workflow("cust-1", "Does Pro include API access?")
 

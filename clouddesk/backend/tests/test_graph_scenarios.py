@@ -102,13 +102,13 @@ async def test_scenario_a_simple_faq_routes_only_to_product(monkeypatch: pytest.
     from app.agents.schemas import ResolutionAgentResult
 
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     from app.agents.schemas import QAAgentResult
 
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "Does Pro include API access?")
@@ -131,11 +131,11 @@ async def test_scenario_b_duplicate_payment_requires_approval(monkeypatch: pytes
     )
     monkeypatch.setattr("app.graph.nodes.run_billing_agent", AsyncMock(return_value=_billing(requires_approval=True)))
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result(True))),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "Why was I charged twice?")
@@ -155,11 +155,11 @@ async def test_scenario_c_account_lockout_routes_only_to_account(monkeypatch: py
     account_mock = AsyncMock(return_value=_account())
     monkeypatch.setattr("app.graph.nodes.run_account_agent", account_mock)
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "I can't log into my account.")
@@ -184,11 +184,11 @@ async def test_scenario_d_api_failure_runs_technical_and_account_in_parallel(
     monkeypatch.setattr("app.graph.nodes.run_technical_agent", technical_mock)
     monkeypatch.setattr("app.graph.nodes.run_account_agent", account_mock)
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "My API returns 403.")
@@ -219,11 +219,11 @@ async def test_scenario_e_multi_intent_runs_all_three_specialists_in_parallel(
     monkeypatch.setattr("app.graph.nodes.run_account_agent", account_mock)
     monkeypatch.setattr("app.graph.nodes.run_technical_agent", technical_mock)
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "Upgraded, charged twice, API broken.")
@@ -248,11 +248,11 @@ async def test_scenario_f_active_outage_follows_required_agents_faithfully(
     monkeypatch.setattr("app.graph.nodes.run_technical_agent", technical_mock)
     monkeypatch.setattr("app.graph.nodes.run_account_agent", account_mock)
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "My API is failing.")
@@ -285,7 +285,7 @@ async def test_scenario_g_explicit_human_request_skips_specialists(monkeypatch: 
             conversation_history=[],
         )
     )
-    monkeypatch.setattr("app.graph.nodes.run_escalation_agent", escalation_mock)
+    monkeypatch.setattr("app.graph.resolution_nodes.run_escalation_agent", escalation_mock)
 
     final_state = await run_support_workflow("cust-1", "I want to speak to a human.")
 
@@ -309,11 +309,11 @@ async def test_specialist_agent_error_does_not_crash_graph(monkeypatch: pytest.M
         AsyncMock(return_value=AgentError(agent="billing", message="LLM timed out")),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_resolution_agent",
+        "app.graph.resolution_nodes.run_resolution_agent",
         AsyncMock(return_value=ResolutionAgentResult.model_validate(_resolution_result())),
     )
     monkeypatch.setattr(
-        "app.graph.nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
+        "app.graph.resolution_nodes.run_qa_agent", AsyncMock(return_value=QAAgentResult.model_validate(_qa_result(True)))
     )
 
     final_state = await run_support_workflow("cust-1", "I was charged twice.")

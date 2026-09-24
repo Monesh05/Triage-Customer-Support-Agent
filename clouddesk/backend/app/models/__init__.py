@@ -14,6 +14,7 @@ from app.models.customer import Customer
 from app.models.incident import ServiceIncident
 from app.models.invoice import Invoice
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
+from app.models.observability import AgentRun
 from app.models.organization import Organization
 from app.models.payment import Payment, RefundRequest
 from app.models.plan import Plan
@@ -26,6 +27,7 @@ from app.models.usage import UsageRecord
 __all__ = [
     "Base",
     "Account",
+    "AgentRun",
     "ApiKey",
     "ApprovalRequest",
     "AuditLog",
