@@ -212,3 +212,19 @@ async def get_trace_for_ticket(session: AsyncSession, ticket_id: uuid.UUID) -> l
         select(AgentRun).where(AgentRun.ticket_id == ticket_id).order_by(AgentRun.start_time.asc())
     )
     return list(result.scalars().all())
+
+
+async def get_trace_for_thread(session: AsyncSession, thread_id: str) -> list[AgentRun]:
+    """Return every AgentRun tied to a LangGraph thread, in chronological execution order.
+
+    Used by the Phase 9 customer-facing conversation-status endpoint (spec section 25) to derive
+    a live, safe high-level step sequence ("Checking billing", "Preparing resolution", ...) while
+    a workflow run is still in progress, keyed by `thread_id` rather than `ticket_id` since a
+    ticket's own id is not necessarily known to the caller yet (it is best-effort auto-created at
+    the very start of the run — app.graph.graph._create_ticket_if_possible — but that happens
+    inside the same background task the caller is polling the status of).
+    """
+    result = await session.execute(
+        select(AgentRun).where(AgentRun.thread_id == thread_id).order_by(AgentRun.start_time.asc())
+    )
+    return list(result.scalars().all())

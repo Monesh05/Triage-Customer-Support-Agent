@@ -1,12 +1,14 @@
 # app/main.py
-# Purpose: FastAPI application entrypoint — wires up logging, the v1 API router, and
+# Purpose: FastAPI application entrypoint — wires up logging, CORS (Phase 9, spec section 25: the
+#          Next.js frontend calls this API from a different origin), the v1 API router, and
 #          translates service-layer exceptions into structured HTTP error responses.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import logging
 
 from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
@@ -20,6 +22,14 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(NotFoundError)

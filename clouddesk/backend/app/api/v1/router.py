@@ -1,5 +1,6 @@
 # app/api/v1/router.py
-# Purpose: Aggregates all v1 API routers into a single APIRouter mounted by main.py.
+# Purpose: Aggregates all v1 API routers into a single APIRouter mounted by main.py. Extended in
+#          Phase 9 with the customer-facing conversations router (spec section 25).
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -9,6 +10,7 @@ from app.api.v1 import (
     accounts,
     api_keys,
     approvals,
+    conversations,
     entitlements,
     incidents,
     invoices,
@@ -35,3 +37,4 @@ api_router.include_router(refunds.router)
 api_router.include_router(entitlements.router)
 api_router.include_router(approvals.router)
 api_router.include_router(traces.router)
+api_router.include_router(conversations.router)

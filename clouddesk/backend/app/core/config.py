@@ -1,9 +1,10 @@
 # app/core/config.py
 # Purpose: Central application settings loaded from environment variables via pydantic-settings.
 #          Provides configuration for the database connection, API metadata, LLM/OpenRouter
-#          integration, and the Phase 6 Product RAG embeddings/retrieval pipeline (spec
+#          integration, the Phase 6 Product RAG embeddings/retrieval pipeline (spec
 #          section 14) — embedding model name and retrieval tuning are never hardcoded at
-#          call sites, only read from here.
+#          call sites, only read from here — and (Phase 9, spec section 25) the CORS allowed-
+#          origins list a frontend dev server needs to call this API from a different origin.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -55,6 +56,17 @@ class Settings(BaseSettings):
     rag_min_similarity: float = 0.25
 
     account_lockout_threshold: int = DEFAULT_ACCOUNT_LOCKOUT_THRESHOLD
+
+    # Phase 9 (spec section 25): comma-separated list of origins allowed to call this API from a
+    # browser (the Next.js frontend). Configurable via env rather than hardcoded so a deployed
+    # frontend's real origin can be added without a code change; the default covers the two most
+    # common local dev ports for a separate frontend process.
+    cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        """`cors_allowed_origins` split into a clean list, ignoring blank/whitespace entries."""
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
 
 @lru_cache

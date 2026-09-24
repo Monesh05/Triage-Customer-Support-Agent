@@ -4,7 +4,10 @@
 #          approve/reject call executes the real underlying side effect via
 #          app.services.approval_service, and — when the action came from a paused support
 #          workflow run — resumes that exact run via app.graph.graph.resume_support_workflow so
-#          the ticket's conversation actually concludes.
+#          the ticket's conversation actually concludes. When that paused thread was started
+#          through the Phase 9 chat API (spec section 25), also updates its conversation-status
+#          registry (app.services.conversation_service) so a customer's next status poll reflects
+#          the resumed outcome instead of staying stuck on "awaiting_approval" forever.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -23,7 +26,7 @@ from app.schemas.approval import (
     ApprovalDecisionResponse,
     ApprovalRequestResponse,
 )
-from app.services import approval_service
+from app.services import approval_service, conversation_service
 from app.services.exceptions import InvalidStateError
 
 logger = logging.getLogger("clouddesk.api.approvals")
@@ -80,6 +83,7 @@ async def _maybe_resume_thread(
             approval_request.thread_id, approval_request.id,
         )
         return False, None
+    conversation_service.record_resumed_workflow(approval_request.thread_id, final_state)
     return True, final_state.get("final_response")
 
 

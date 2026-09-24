@@ -29,6 +29,22 @@ async def get_ticket_by_id(session: AsyncSession, ticket_id: uuid.UUID) -> Suppo
     return ticket
 
 
+async def list_tickets_for_customer(session: AsyncSession, customer_id: uuid.UUID) -> list[SupportTicket]:
+    """List a customer's support tickets, most recent first (spec sections 25/26: a frontend
+    support-history view and the Support Console's per-customer ticket list).
+
+    Raises:
+        NotFoundError: if the customer does not exist.
+    """
+    await get_customer_by_id(session, customer_id)  # 404s early if the customer id is unknown.
+    result = await session.execute(
+        select(SupportTicket)
+        .where(SupportTicket.customer_id == customer_id)
+        .order_by(SupportTicket.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
 async def create_ticket(
     session: AsyncSession,
     customer_id: uuid.UUID,
