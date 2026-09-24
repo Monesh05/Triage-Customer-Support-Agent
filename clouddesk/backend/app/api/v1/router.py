@@ -1,13 +1,14 @@
 # app/api/v1/router.py
 # Purpose: Aggregates all v1 API routers into a single APIRouter mounted by main.py.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 from fastapi import APIRouter
 
 from app.api.v1 import (
     accounts,
     api_keys,
+    approvals,
     entitlements,
     incidents,
     invoices,
@@ -31,3 +32,4 @@ api_router.include_router(incidents.router)
 api_router.include_router(tickets.router)
 api_router.include_router(refunds.router)
 api_router.include_router(entitlements.router)
+api_router.include_router(approvals.router)

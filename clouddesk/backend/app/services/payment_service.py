@@ -1,10 +1,12 @@
 # app/services/payment_service.py
 # Purpose: Business logic for payment retrieval, refund-amount calculation, and creation of
 #          refund request records. Refunds require human approval before execution (spec
-#          section 22), so this service only ever creates a PENDING_APPROVAL record — it
-#          never marks a payment as refunded itself.
+#          section 22). Phase 5 adds `approve_refund_request`/`reject_refund_request`, the only
+#          place a refund is ever actually executed (payment marked REFUNDED) — always driven by
+#          a real human decision recorded via app/services/approval_service.py, never
+#          automatically.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import logging
 import uuid
@@ -111,4 +113,91 @@ async def create_refund_request(
 
     await session.refresh(refund_request)
     logger.info("Refund request %s created for payment %s", refund_request.id, payment_id)
+    return refund_request
+
+
+async def get_refund_request_by_id(
+    session: AsyncSession, refund_request_id: uuid.UUID
+) -> RefundRequest:
+    """Fetch a single refund request by id or raise NotFoundError."""
+    result = await session.execute(
+        select(RefundRequest).where(RefundRequest.id == refund_request_id)
+    )
+    refund_request = result.scalar_one_or_none()
+    if refund_request is None:
+        raise NotFoundError(f"Refund request {refund_request_id} not found")
+    return refund_request
+
+
+def _assert_pending_approval(refund_request: RefundRequest) -> None:
+    if refund_request.status != RefundRequestStatus.PENDING_APPROVAL:
+        raise InvalidStateError(
+            f"Refund request {refund_request.id} has status={refund_request.status.value}; "
+            "only a pending-approval refund request can be approved or rejected"
+        )
+
+
+async def approve_refund_request(
+    session: AsyncSession, refund_request_id: uuid.UUID, approved_by: str
+) -> RefundRequest:
+    """Approve a pending refund request and ACTUALLY execute it: the underlying payment is
+    marked REFUNDED in the same transaction. This is the only code path that ever transitions a
+    payment to REFUNDED (spec section 27: never claim an action succeeded unless it happened).
+
+    Raises:
+        NotFoundError: if the refund request does not exist.
+        InvalidStateError: if it is not currently PENDING_APPROVAL (e.g. already decided).
+    """
+    refund_request = await get_refund_request_by_id(session, refund_request_id)
+    _assert_pending_approval(refund_request)
+
+    payment = await get_payment_by_id(session, refund_request.payment_id)
+    payment.status = PaymentStatus.REFUNDED
+    refund_request.status = RefundRequestStatus.COMPLETED
+
+    record_audit(
+        session, refund_request.customer_id, AuditActionType.REFUND_REQUEST_APPROVED, approved_by,
+        {"refund_request_id": str(refund_request.id), "payment_id": str(payment.id)},
+    )
+
+    try:
+        await session.commit()
+    except Exception:
+        logger.exception("Failed to commit refund approval for %s", refund_request_id)
+        await session.rollback()
+        raise
+
+    await session.refresh(refund_request)
+    logger.info("Refund request %s approved and executed by %s", refund_request.id, approved_by)
+    return refund_request
+
+
+async def reject_refund_request(
+    session: AsyncSession, refund_request_id: uuid.UUID, rejected_by: str, reason: str | None
+) -> RefundRequest:
+    """Reject a pending refund request. The underlying payment is left untouched.
+
+    Raises:
+        NotFoundError: if the refund request does not exist.
+        InvalidStateError: if it is not currently PENDING_APPROVAL.
+    """
+    refund_request = await get_refund_request_by_id(session, refund_request_id)
+    _assert_pending_approval(refund_request)
+
+    refund_request.status = RefundRequestStatus.REJECTED
+
+    record_audit(
+        session, refund_request.customer_id, AuditActionType.REFUND_REQUEST_REJECTED, rejected_by,
+        {"refund_request_id": str(refund_request.id), "reason": reason or ""},
+    )
+
+    try:
+        await session.commit()
+    except Exception:
+        logger.exception("Failed to commit refund rejection for %s", refund_request_id)
+        await session.rollback()
+        raise
+
+    await session.refresh(refund_request)
+    logger.info("Refund request %s rejected by %s", refund_request.id, rejected_by)
     return refund_request

@@ -1,8 +1,9 @@
 # app/models/enums.py
 # Purpose: Central definitions of all domain enums used by CloudDesk ORM models and
-#          Pydantic schemas (status/severity/priority fields), per spec section 5.
+#          Pydantic schemas (status/severity/priority fields), per spec section 5. Extended in
+#          Phase 5 with `ApprovalStatus` and human-in-the-loop audit action types (spec 22, 27).
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import enum
 
@@ -93,5 +94,16 @@ class AuditActionType(str, enum.Enum):
     ACCOUNT_UNLOCK = "account_unlock"
     REFUND_REQUEST_CREATED = "refund_request_created"
     REFUND_REQUEST_APPROVED = "refund_request_approved"
+    REFUND_REQUEST_REJECTED = "refund_request_rejected"
     ENTITLEMENT_REFRESH = "entitlement_refresh"
     TICKET_CREATED = "ticket_created"
+    PENDING_ACTION_APPROVED = "pending_action_approved"
+    PENDING_ACTION_REJECTED = "pending_action_rejected"
+
+
+class ApprovalStatus(str, enum.Enum):
+    """Status of a generic human-in-the-loop approval request (spec section 22)."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"

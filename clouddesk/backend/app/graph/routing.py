@@ -1,9 +1,11 @@
 # app/graph/routing.py
 # Purpose: Pure conditional-edge routing functions for the support StateGraph (spec sections
-#          19-21). `route_after_triage` decides which specialist nodes fan out in parallel (or
+#          19-22). `route_after_triage` decides which specialist nodes fan out in parallel (or
 #          whether to go straight to escalation on an explicit human request). `route_after_qa`
-#          implements the bounded reflection loop back to the Resolution Agent. These are plain
-#          functions with no side effects so they can be unit-tested without any graph/LLM.
+#          implements the bounded reflection loop back to the Resolution Agent. `route_after_finalize`
+#          (Phase 5) sends the run to the human-in-the-loop pause node only when approval is
+#          actually required. These are plain functions with no side effects so they can be
+#          unit-tested without any graph/LLM.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -75,3 +77,14 @@ def route_after_qa(state: SupportState) -> str:
         return "resolution"
     logger.info("route_after_qa decision=escalation iteration=%d (max reached)", iteration)
     return "escalation"
+
+
+def route_after_finalize(state: SupportState) -> str:
+    """Send the run to the human-in-the-loop pause node (spec section 22) only when
+    `finalize_node` determined approval is required; otherwise the run is already complete.
+    """
+    if state.get("human_approval_required"):
+        logger.info("route_after_finalize decision=await_human_decision")
+        return "await_human_decision"
+    logger.info("route_after_finalize decision=end")
+    return "end"

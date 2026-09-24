@@ -3,12 +3,17 @@
 #          wraps exactly one Phase 3 agent call, translating its `SchemaT | AgentError` result
 #          into a partial SupportState update. No node ever lets an exception or AgentError
 #          propagate/crash the graph — failures degrade to an `errors` entry and a safe fallback
-#          (usually routing toward escalation) instead.
+#          (usually routing toward escalation) instead. Phase 5 adds `await_human_decision_node`,
+#          which uses LangGraph's `interrupt()` to actually pause the graph run when
+#          `finalize_node` determines human approval is required, and resumes with the human's
+#          decision once `app/graph/graph.py`'s `resume_support_workflow` is called.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
 import logging
 from typing import Any
+
+from langgraph.types import interrupt
 
 from app.agents.account import run_account_agent
 from app.agents.base import AgentError
@@ -195,8 +200,12 @@ def _collect_pending_actions(specialist_results: dict[str, dict[str, Any]]) -> l
 
 
 async def finalize_node(state: SupportState) -> dict[str, Any]:
-    """QA approved: either hold for human approval or produce the final customer response
-    (spec section 19's Check Actions / Approval Required branch, minus execution — Phase 5).
+    """QA approved: either flag the run for human approval (spec section 19's Check Actions /
+    Approval Required branch) or produce the final customer response directly. This node only
+    determines and records WHETHER approval is required; the actual pause happens in the
+    following `await_human_decision_node`, once this node's state update has been committed by
+    the checkpointer (so a paused run's `human_approval_required`/`pending_actions` are always
+    visible to callers, not stuck mid-node).
     """
     logger.info("node_enter node=finalize")
     resolution = state.get("resolution") or {}
@@ -214,3 +223,46 @@ async def finalize_node(state: SupportState) -> dict[str, Any]:
 
     logger.info("node_exit node=finalize status=resolved")
     return {"final_response": resolution.get("customer_facing_draft", DEFAULT_RESOLVED_MESSAGE)}
+
+
+APPROVED_ACTION_MESSAGE_SUFFIX: str = " The requested action has been approved and completed."
+REJECTED_ACTION_MESSAGE: str = (
+    "After review, the requested action was not approved. A member of our team will follow up "
+    "with more details."
+)
+
+
+async def await_human_decision_node(state: SupportState) -> dict[str, Any]:
+    """Actually pause the graph run (spec section 22) until a human approves or rejects the
+    pending actions `finalize_node` recorded. Only reached when `human_approval_required` is
+    True. `interrupt()` suspends execution here — `graph.ainvoke` returns to its caller with the
+    state as of `finalize_node`'s commit, and this node re-runs from the top on resume, with
+    `interrupt()` returning the value passed to `Command(resume=...)`.
+    """
+    logger.info("node_enter node=await_human_decision thread=%s", state.get("thread_id"))
+    pending_actions = state.get("pending_actions", [])
+    decision: dict[str, Any] = interrupt({"pending_actions": pending_actions})
+
+    decided = decision.get("actions", [])
+    approved = [a for a in decided if a.get("status") == "approved"]
+    rejected = [a for a in decided if a.get("status") == "rejected"]
+
+    draft = (state.get("resolution") or {}).get("customer_facing_draft", DEFAULT_RESOLVED_MESSAGE)
+    if approved and not rejected:
+        final_response = f"{draft}{APPROVED_ACTION_MESSAGE_SUFFIX}"
+    elif rejected and not approved:
+        final_response = REJECTED_ACTION_MESSAGE
+    else:
+        final_response = (
+            f"{draft} Part of the requested action was approved and completed; the rest was not "
+            "approved. A member of our team will follow up with more details."
+        )
+
+    logger.info(
+        "node_exit node=await_human_decision approved=%d rejected=%d", len(approved), len(rejected)
+    )
+    return {
+        "approved_actions": approved,
+        "executed_actions": approved,
+        "final_response": final_response,
+    }
