@@ -1,0 +1,1538 @@
+{
+  "run_metadata": {
+    "timestamp": "2026-09-24T13:14:47.540488+00:00",
+    "llm_provider": "openai",
+    "model": "gpt-4o-mini",
+    "dataset_path": "evaluation/datasets/tickets.jsonl",
+    "dataset_size": 55,
+    "categories_filter": [
+      "billing",
+      "account",
+      "technical",
+      "multi-intent",
+      "false-positive"
+    ],
+    "limit": null
+  },
+  "metrics": {
+    "overall": {
+      "ticket_count": 55,
+      "succeeded_count": 55,
+      "failed_count": 0,
+      "intent_classification_accuracy": 0.696969696969697,
+      "routing_accuracy": 0.696969696969697,
+      "tool_call_accuracy": 0.4913190345008526,
+      "resolution_accuracy": 0.8545454545454545,
+      "qa_accuracy": 0.0,
+      "escalation_accuracy": 0.9636363636363636,
+      "false_positive_escalation_rate": 0.0,
+      "hallucination_rate": 0.0,
+      "average_latency_ms": 45797.05454545454,
+      "average_iterations": 2.6545454545454548
+    },
+    "by_category": {
+      "billing": {
+        "ticket_count": 15,
+        "succeeded_count": 15,
+        "failed_count": 0,
+        "intent_classification_accuracy": 1.0,
+        "routing_accuracy": 1.0,
+        "tool_call_accuracy": 0.611111111111111,
+        "resolution_accuracy": 1.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.9333333333333333,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 33119.6,
+        "average_iterations": 2.6
+      },
+      "account": {
+        "ticket_count": 10,
+        "succeeded_count": 10,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.75,
+        "routing_accuracy": 0.75,
+        "tool_call_accuracy": 0.8125,
+        "resolution_accuracy": 1.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.9,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 37415.4,
+        "average_iterations": 3.0
+      },
+      "technical": {
+        "ticket_count": 10,
+        "succeeded_count": 10,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.5,
+        "routing_accuracy": 0.5,
+        "tool_call_accuracy": 0.6166666666666666,
+        "resolution_accuracy": 0.2,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 1.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 33683.9,
+        "average_iterations": 2.8
+      },
+      "product": {
+        "ticket_count": 0,
+        "succeeded_count": 0,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.0,
+        "routing_accuracy": 0.0,
+        "tool_call_accuracy": 0.0,
+        "resolution_accuracy": 0.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 0.0,
+        "average_iterations": 0.0
+      },
+      "multi-intent": {
+        "ticket_count": 10,
+        "succeeded_count": 10,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.8333333333333334,
+        "routing_accuracy": 0.8333333333333334,
+        "tool_call_accuracy": 0.30086580086580084,
+        "resolution_accuracy": 1.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 1.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 101356.0,
+        "average_iterations": 3.0
+      },
+      "ambiguous": {
+        "ticket_count": 0,
+        "succeeded_count": 0,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.0,
+        "routing_accuracy": 0.0,
+        "tool_call_accuracy": 0.0,
+        "resolution_accuracy": 0.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 0.0,
+        "average_iterations": 0.0
+      },
+      "escalation": {
+        "ticket_count": 0,
+        "succeeded_count": 0,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.0,
+        "routing_accuracy": 0.0,
+        "tool_call_accuracy": 0.0,
+        "resolution_accuracy": 0.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 0.0,
+        "average_iterations": 0.0
+      },
+      "false-positive": {
+        "ticket_count": 10,
+        "succeeded_count": 10,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.25,
+        "routing_accuracy": 0.25,
+        "tool_call_accuracy": 0.05555555555555556,
+        "resolution_accuracy": 1.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 1.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 29749.1,
+        "average_iterations": 1.9
+      },
+      "policy-sensitive": {
+        "ticket_count": 0,
+        "succeeded_count": 0,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.0,
+        "routing_accuracy": 0.0,
+        "tool_call_accuracy": 0.0,
+        "resolution_accuracy": 0.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 0.0,
+        "average_iterations": 0.0
+      },
+      "adversarial": {
+        "ticket_count": 0,
+        "succeeded_count": 0,
+        "failed_count": 0,
+        "intent_classification_accuracy": 0.0,
+        "routing_accuracy": 0.0,
+        "tool_call_accuracy": 0.0,
+        "resolution_accuracy": 0.0,
+        "qa_accuracy": 0.0,
+        "escalation_accuracy": 0.0,
+        "false_positive_escalation_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "average_latency_ms": 0.0,
+        "average_iterations": 0.0
+      }
+    }
+  },
+  "tickets": [
+    {
+      "ticket_id": "billing-dupe-acme-0",
+      "category": "billing",
+      "customer_id": "8f63648a-fe1e-430d-9980-8b4f1a3693be",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 35453.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-acme-1",
+      "category": "billing",
+      "customer_id": "8f63648a-fe1e-430d-9980-8b4f1a3693be",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 37744.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": true,
+      "human_approval_required": false,
+      "qa_approved": false,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-globex-0",
+      "category": "billing",
+      "customer_id": "5cd1253f-20d1-4e01-b082-2de0cf6296b6",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 42417.0,
+      "iteration": 2,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-globex-1",
+      "category": "billing",
+      "customer_id": "5cd1253f-20d1-4e01-b082-2de0cf6296b6",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 43713.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-initech-0",
+      "category": "billing",
+      "customer_id": "8e680a6a-6341-4a08-b457-882a057506f9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 44284.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-initech-1",
+      "category": "billing",
+      "customer_id": "8e680a6a-6341-4a08-b457-882a057506f9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 33254.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-umbrella-0",
+      "category": "billing",
+      "customer_id": "bc37507c-12ff-4df9-9851-6e309202906b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 31935.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-umbrella-1",
+      "category": "billing",
+      "customer_id": "bc37507c-12ff-4df9-9851-6e309202906b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 37821.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-stark-0",
+      "category": "billing",
+      "customer_id": "5a86015d-bb42-42f3-bb19-3ecb52976466",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 32130.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-dupe-stark-1",
+      "category": "billing",
+      "customer_id": "5a86015d-bb42-42f3-bb19-3ecb52976466",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 34976.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-failed-acme",
+      "category": "billing",
+      "customer_id": "51d1d54d-b0fe-4d46-91f8-9b8240ac5843",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 23636.0,
+      "iteration": 2,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-failed-globex",
+      "category": "billing",
+      "customer_id": "a3b00123-90ce-453a-bed6-0399e38c8105",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 16630.0,
+      "iteration": 1,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-failed-initech",
+      "category": "billing",
+      "customer_id": "51b5b68c-d0bf-4c91-b66c-ba7d90ed1851",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 15120.0,
+      "iteration": 1,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-pending-umbrella",
+      "category": "billing",
+      "customer_id": "ceba939c-109a-48cc-8a3a-70ec79fe8ab1",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 41763.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "billing-pending-stark",
+      "category": "billing",
+      "customer_id": "8847eb34-e0d6-41dd-ae22-258f29062a9a",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 25918.0,
+      "iteration": 3,
+      "intents": [
+        "billing"
+      ],
+      "required_agents": [
+        "billing"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-acme-0",
+      "category": "account",
+      "customer_id": "d9819207-9c1c-48fe-a740-f76aa1c5bd43",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 40382.0,
+      "iteration": 3,
+      "intents": [
+        "account"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-acme-1",
+      "category": "account",
+      "customer_id": "d9819207-9c1c-48fe-a740-f76aa1c5bd43",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 55614.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-globex-0",
+      "category": "account",
+      "customer_id": "5cbbd926-c2af-4526-b50b-f4a11237e8a9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 39457.0,
+      "iteration": 3,
+      "intents": [
+        "account"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-globex-1",
+      "category": "account",
+      "customer_id": "5cbbd926-c2af-4526-b50b-f4a11237e8a9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 35266.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-initech-0",
+      "category": "account",
+      "customer_id": "826a6abe-e3e3-4aa6-aa50-b395fce1e2bd",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 27381.0,
+      "iteration": 3,
+      "intents": [
+        "account"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-initech-1",
+      "category": "account",
+      "customer_id": "826a6abe-e3e3-4aa6-aa50-b395fce1e2bd",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 35182.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-umbrella-0",
+      "category": "account",
+      "customer_id": "94fa2f91-fbc8-4a9f-bf89-206e5e448b89",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 30461.0,
+      "iteration": 3,
+      "intents": [
+        "account"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-umbrella-1",
+      "category": "account",
+      "customer_id": "94fa2f91-fbc8-4a9f-bf89-206e5e448b89",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 39854.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-stark-0",
+      "category": "account",
+      "customer_id": "bbeee838-1f19-449f-a8cc-d3b2f59959bf",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 24037.0,
+      "iteration": 3,
+      "intents": [
+        "account"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "account-locked-stark-1",
+      "category": "account",
+      "customer_id": "bbeee838-1f19-449f-a8cc-d3b2f59959bf",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 46520.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": true,
+      "human_approval_required": false,
+      "qa_approved": false,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-acme-0",
+      "category": "technical",
+      "customer_id": "ccf4096c-e08f-4a21-a363-9743357e0006",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 42232.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-acme-1",
+      "category": "technical",
+      "customer_id": "ccf4096c-e08f-4a21-a363-9743357e0006",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 29649.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-globex-0",
+      "category": "technical",
+      "customer_id": "c4bca272-646c-4a5b-a91c-a4acad3d8a1b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 27768.0,
+      "iteration": 1,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-globex-1",
+      "category": "technical",
+      "customer_id": "c4bca272-646c-4a5b-a91c-a4acad3d8a1b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 31750.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-initech-0",
+      "category": "technical",
+      "customer_id": "c0a2f1ec-033a-4d7e-8024-70d568574fa8",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 38116.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-initech-1",
+      "category": "technical",
+      "customer_id": "c0a2f1ec-033a-4d7e-8024-70d568574fa8",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 30279.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-umbrella-0",
+      "category": "technical",
+      "customer_id": "ccff82a2-fb65-4a44-9841-2d390ea492a5",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 44403.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-umbrella-1",
+      "category": "technical",
+      "customer_id": "ccff82a2-fb65-4a44-9841-2d390ea492a5",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 31619.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-stark-0",
+      "category": "technical",
+      "customer_id": "101bae8c-ddaa-4b9f-84b6-9b6d75c7db02",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 30751.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "technical-stale-stark-1",
+      "category": "technical",
+      "customer_id": "101bae8c-ddaa-4b9f-84b6-9b6d75c7db02",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 30272.0,
+      "iteration": 3,
+      "intents": [
+        "technical"
+      ],
+      "required_agents": [
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-acme-0",
+      "category": "multi-intent",
+      "customer_id": "8f63648a-fe1e-430d-9980-8b4f1a3693be",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 73426.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-acme-1",
+      "category": "multi-intent",
+      "customer_id": "8f63648a-fe1e-430d-9980-8b4f1a3693be",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 72587.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-globex-0",
+      "category": "multi-intent",
+      "customer_id": "5cd1253f-20d1-4e01-b082-2de0cf6296b6",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 57436.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-globex-1",
+      "category": "multi-intent",
+      "customer_id": "5cd1253f-20d1-4e01-b082-2de0cf6296b6",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 106361.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-initech-0",
+      "category": "multi-intent",
+      "customer_id": "8e680a6a-6341-4a08-b457-882a057506f9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 51754.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-initech-1",
+      "category": "multi-intent",
+      "customer_id": "8e680a6a-6341-4a08-b457-882a057506f9",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 72300.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-umbrella-0",
+      "category": "multi-intent",
+      "customer_id": "bc37507c-12ff-4df9-9851-6e309202906b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 57357.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-umbrella-1",
+      "category": "multi-intent",
+      "customer_id": "bc37507c-12ff-4df9-9851-6e309202906b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 85407.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-stark-0",
+      "category": "multi-intent",
+      "customer_id": "5a86015d-bb42-42f3-bb19-3ecb52976466",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 363035.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "multi-intent-stark-1",
+      "category": "multi-intent",
+      "customer_id": "5a86015d-bb42-42f3-bb19-3ecb52976466",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 73897.0,
+      "iteration": 3,
+      "intents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "billing",
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": true,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "billing",
+        "technical",
+        "account"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-acme-0",
+      "category": "false-positive",
+      "customer_id": "dfbf4bb4-c82b-48c5-b7a8-14366de30c3b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 42504.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-acme-1",
+      "category": "false-positive",
+      "customer_id": "dfbf4bb4-c82b-48c5-b7a8-14366de30c3b",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 22538.0,
+      "iteration": 2,
+      "intents": [
+        "account",
+        "product"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-globex-0",
+      "category": "false-positive",
+      "customer_id": "27a89f50-843b-4dcd-a2da-9cb58868745e",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 27493.0,
+      "iteration": 1,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-globex-1",
+      "category": "false-positive",
+      "customer_id": "27a89f50-843b-4dcd-a2da-9cb58868745e",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 25672.0,
+      "iteration": 1,
+      "intents": [
+        "account",
+        "product"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-initech-0",
+      "category": "false-positive",
+      "customer_id": "f0718ed9-4a65-4fe3-a086-945dd3801c20",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 41432.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-initech-1",
+      "category": "false-positive",
+      "customer_id": "f0718ed9-4a65-4fe3-a086-945dd3801c20",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 13462.0,
+      "iteration": 1,
+      "intents": [
+        "account",
+        "product"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-umbrella-0",
+      "category": "false-positive",
+      "customer_id": "258b5351-0cc4-49f5-af5c-01b518db8e6c",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 43083.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-umbrella-1",
+      "category": "false-positive",
+      "customer_id": "258b5351-0cc4-49f5-af5c-01b518db8e6c",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 40232.0,
+      "iteration": 3,
+      "intents": [
+        "account",
+        "product"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-stark-0",
+      "category": "false-positive",
+      "customer_id": "11964da4-0bb9-4d8f-a994-4fb991bc36a5",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 30024.0,
+      "iteration": 1,
+      "intents": [
+        "account",
+        "technical"
+      ],
+      "required_agents": [
+        "account",
+        "technical"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    },
+    {
+      "ticket_id": "false-positive-stark-1",
+      "category": "false-positive",
+      "customer_id": "11964da4-0bb9-4d8f-a994-4fb991bc36a5",
+      "succeeded": true,
+      "run_error": null,
+      "latency_ms": 11051.0,
+      "iteration": 1,
+      "intents": [
+        "account",
+        "product"
+      ],
+      "required_agents": [
+        "account"
+      ],
+      "escalation_required": false,
+      "human_approval_required": false,
+      "qa_approved": true,
+      "hallucination_detected": false,
+      "expected_escalation": false,
+      "expected_intents": [
+        "technical"
+      ]
+    }
+  ]
+}

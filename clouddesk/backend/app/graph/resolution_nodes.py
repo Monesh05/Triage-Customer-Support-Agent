@@ -41,10 +41,26 @@ REJECTED_ACTION_MESSAGE: str = (
 )
 
 
+def _prior_qa_feedback(state: SupportState) -> dict[str, Any] | None:
+    """The previous iteration's QA rejection reasons, if this is a reflection-loop retry (spec
+    section 21). Returns None on the first attempt or once QA has approved, so a fresh run never
+    gets stale feedback."""
+    qa_result = state.get("qa_result")
+    if not qa_result or qa_result.get("approved"):
+        return None
+    return {
+        "issues": qa_result.get("issues", []),
+        "required_changes": qa_result.get("required_changes", []),
+    }
+
+
 async def resolution_node(state: SupportState) -> dict[str, Any]:
-    """Synthesize specialist findings into a proposed resolution (spec section 15)."""
+    """Synthesize specialist findings into a proposed resolution (spec section 15). On any
+    iteration after the first, also passes QA's prior rejection reasons back in (spec section 21)
+    so the agent fixes what was actually flagged instead of regenerating blind."""
     logger.info("node_enter node=resolution iteration=%d", state.get("iteration", 0))
     next_iteration = state.get("iteration", 0) + 1
+    prior_qa_feedback = _prior_qa_feedback(state)
     async with trace_agent_run(
         thread_id=state["thread_id"],
         ticket_id=parse_ticket_uuid(state),
@@ -53,7 +69,9 @@ async def resolution_node(state: SupportState) -> dict[str, Any]:
     ) as recorder:
         recorder.set_input(state["customer_message"])
         try:
-            result = await run_resolution_agent(state["customer_message"], state["specialist_results"])
+            result = await run_resolution_agent(
+                state["customer_message"], state["specialist_results"], prior_qa_feedback
+            )
         except Exception as exc:  # noqa: BLE001
             result = AgentError(agent="resolution", message=str(exc))
         if isinstance(result, AgentError):
@@ -82,8 +100,11 @@ async def qa_node(state: SupportState) -> dict[str, Any]:
         iteration=current_iteration,
     ) as recorder:
         recorder.set_input(state["customer_message"])
+        is_final_attempt = current_iteration >= MAX_ITERATIONS
         try:
-            result = await run_qa_agent(state["customer_message"], state["specialist_results"], resolution)
+            result = await run_qa_agent(
+                state["customer_message"], state["specialist_results"], resolution, is_final_attempt
+            )
         except Exception as exc:  # noqa: BLE001
             result = AgentError(agent="qa", message=str(exc))
         if isinstance(result, AgentError):
@@ -95,8 +116,7 @@ async def qa_node(state: SupportState) -> dict[str, Any]:
                 "escalation_required": True,
             }
         recorder.set_output(result)
-        at_max_iterations = current_iteration >= MAX_ITERATIONS
-        escalation_required = result.escalation_needed or (not result.approved and at_max_iterations)
+        escalation_required = result.escalation_needed or (not result.approved and is_final_attempt)
         logger.info("node_exit node=qa status=ok approved=%s", result.approved)
         return {"qa_result": result.model_dump(), "escalation_required": escalation_required}
 

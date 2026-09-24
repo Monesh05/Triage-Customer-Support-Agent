@@ -40,6 +40,33 @@ async def test_qa_agent_rejects_overclaiming_draft(monkeypatch: pytest.MonkeyPat
     assert result.actions_confirmed is False
 
 
+async def test_qa_agent_final_attempt_notice_reaches_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """is_final_attempt=True must add the FINAL ATTEMPT notice to the reviewed material."""
+    fake_llm = FakeLLM()
+    approved = QAAgentResult(
+        approved=True,
+        issues=[],
+        required_changes=[],
+        evidence_supported=True,
+        hallucination_detected=False,
+        policy_compliant=True,
+        actions_confirmed=True,
+        escalation_needed=False,
+    )
+    fake_llm.client.beta.chat.completions.parse.return_value = FakeCompletion(
+        FakeMessage(parsed=approved)
+    )
+    monkeypatch.setattr("app.llm.structured.get_llm_client", lambda: fake_llm)
+
+    result = await run_qa_agent("I was charged twice.", {}, {}, is_final_attempt=True)
+
+    assert isinstance(result, QAAgentResult)
+    assert result.approved is True
+    _, kwargs = fake_llm.client.beta.chat.completions.parse.call_args
+    user_message = next(m["content"] for m in kwargs["messages"] if m["role"] == "user")
+    assert "FINAL review" in user_message
+
+
 async def test_qa_agent_handles_malformed_output(monkeypatch: pytest.MonkeyPatch) -> None:
     """A model reply that never yields valid JSON returns AgentError, not a crash."""
     fake_llm = FakeLLM()
