@@ -13,7 +13,9 @@ export const CONVERSATION_MAX_POLL_ATTEMPTS: number = 120;
 /** Max characters accepted in one chat message, mirrors the backend's MAX_MESSAGE_LENGTH. */
 export const CHAT_MESSAGE_MAX_LENGTH: number = 5000;
 
-/** Cookie name used to persist the selected demo customer (see lib/current-customer.ts). Kept
- * here (not in that server-only module) so client components like CustomerSwitcher can reference
- * it without pulling `next/headers` into the client bundle. */
-export const CURRENT_CUSTOMER_COOKIE: string = "clouddesk_customer_id";
+/** Phase 10 (spec section 27): httpOnly cookie holding the signed JWT issued by
+ * POST /api/v1/auth/login or /auth/staff/login (proxied through this app's own
+ * app/api/auth/* route handlers — see lib/current-customer.ts / lib/current-staff.ts). Never
+ * readable from client-side JS; kept here (not in a server-only module) purely as a shared
+ * string constant both server and client code can reference. */
+export const AUTH_TOKEN_COOKIE: string = "clouddesk_token";

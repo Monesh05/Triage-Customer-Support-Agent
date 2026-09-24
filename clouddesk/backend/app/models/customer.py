@@ -1,7 +1,10 @@
 # app/models/customer.py
 # Purpose: SQLAlchemy ORM model for customers (end users of CloudDesk), per spec section 5.
+#          Phase 10 (spec section 27) adds `password_hash` so a customer can authenticate via
+#          POST /api/v1/auth/login; it is always a bcrypt hash (see app.core.security), never
+#          plaintext, and is never included in any response schema (see app.schemas.customer).
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 import uuid
 
@@ -27,6 +30,10 @@ class Customer(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=CustomerStatus.ACTIVE,
     )
+    # Bcrypt hash of the customer's login password (Phase 10). Nullable so older rows created
+    # before this column existed do not break; such a customer simply cannot log in until a hash
+    # is set. Never selected into a response schema (see CustomerResponse).
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     organization: Mapped["Organization"] = relationship(back_populates="customers")
     account: Mapped["Account"] = relationship(

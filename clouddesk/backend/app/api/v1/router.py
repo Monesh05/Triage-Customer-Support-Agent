@@ -10,6 +10,7 @@ from app.api.v1 import (
     accounts,
     api_keys,
     approvals,
+    auth,
     conversations,
     entitlements,
     incidents,
@@ -24,6 +25,7 @@ from app.api.v1 import (
 from app.api.v1 import customers as customers_module
 
 api_router = APIRouter()
+api_router.include_router(auth.router)
 api_router.include_router(customers_module.router)
 api_router.include_router(accounts.router)
 api_router.include_router(subscriptions.router)

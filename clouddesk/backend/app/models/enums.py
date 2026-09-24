@@ -101,6 +101,9 @@ class AuditActionType(str, enum.Enum):
     TICKET_CREATED = "ticket_created"
     PENDING_ACTION_APPROVED = "pending_action_approved"
     PENDING_ACTION_REJECTED = "pending_action_rejected"
+    # Phase 10 (spec section 27, org policy A09): authentication events are sensitive actions too.
+    LOGIN_SUCCEEDED = "login_succeeded"
+    LOGIN_FAILED = "login_failed"
 
 
 class ApprovalStatus(str, enum.Enum):

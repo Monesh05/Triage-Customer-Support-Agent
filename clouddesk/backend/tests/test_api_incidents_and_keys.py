@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.api_key import ApiKey
 from app.models.enums import IncidentSeverity, IncidentStatus
 from app.models.incident import ServiceIncident
+from tests.conftest import auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan
 
 
@@ -41,7 +42,7 @@ async def test_api_key_response_never_includes_key_hash(client: AsyncClient, db_
     db_session.add(ApiKey(customer=customer, key_hash="sha256:should-never-appear", rate_limit=1000))
     await db_session.flush()
 
-    response = await client.get(f"/api/v1/api-keys/{customer.id}")
+    response = await client.get(f"/api/v1/api-keys/{customer.id}", headers=auth_headers(customer.id))
 
     assert response.status_code == 200
     body = response.json()

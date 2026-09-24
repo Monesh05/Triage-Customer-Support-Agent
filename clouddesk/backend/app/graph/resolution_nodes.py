@@ -230,7 +230,14 @@ async def await_human_decision_node(state: SupportState) -> dict[str, Any]:
     logger.info(
         "node_exit node=await_human_decision approved=%d rejected=%d", len(approved), len(rejected)
     )
+    # `human_approval_required` has no LangGraph reducer (see app.graph.state.SupportState), so it
+    # is overwritten-on-update rather than merged: `finalize_node` sets it True and, without this
+    # explicit reset, it would stay True in the final state forever, even after this node resumes
+    # and the workflow actually concludes. That was the Phase 5-era bug (spec section 33's DoD):
+    # `conversation_service._derive_status` reads this flag first, so a resumed run's status would
+    # incorrectly stay "awaiting_approval" instead of correctly reaching "completed"/"escalated".
     return {
+        "human_approval_required": False,
         "approved_actions": approved,
         "executed_actions": approved,
         "final_response": final_response,

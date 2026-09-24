@@ -15,7 +15,7 @@ from app.models.audit_log import AuditLog
 from app.models.enums import AuditActionType, PaymentStatus
 from app.services.approval_service import create_pending_action
 from app.services.payment_service import create_refund_request
-from tests.conftest import new_id
+from tests.conftest import new_id, staff_auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan, create_payment
 
 _PERIOD = datetime(2026, 9, 1, tzinfo=timezone.utc)
@@ -38,7 +38,7 @@ async def _make_pending_refund_action(db_session: AsyncSession) -> tuple[object,
 async def test_list_approvals_returns_pending_only_by_default(client: AsyncClient, db_session: AsyncSession) -> None:
     _customer, approval_request = await _make_pending_refund_action(db_session)
 
-    response = await client.get("/api/v1/approvals")
+    response = await client.get("/api/v1/approvals", headers=staff_auth_headers())
 
     assert response.status_code == 200
     body = response.json()
@@ -50,7 +50,7 @@ async def test_list_approvals_returns_pending_only_by_default(client: AsyncClien
 async def test_read_approval_detail(client: AsyncClient, db_session: AsyncSession) -> None:
     _customer, approval_request = await _make_pending_refund_action(db_session)
 
-    response = await client.get(f"/api/v1/approvals/{approval_request.id}")
+    response = await client.get(f"/api/v1/approvals/{approval_request.id}", headers=staff_auth_headers())
 
     assert response.status_code == 200
     body = response.json()
@@ -60,7 +60,7 @@ async def test_read_approval_detail(client: AsyncClient, db_session: AsyncSessio
 
 
 async def test_read_approval_returns_404_for_unknown_id(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/approvals/{new_id()}")
+    response = await client.get(f"/api/v1/approvals/{new_id()}", headers=staff_auth_headers())
 
     assert response.status_code == 404
 
@@ -69,7 +69,9 @@ async def test_approve_approval_executes_and_writes_audit_log(client: AsyncClien
     _customer, approval_request = await _make_pending_refund_action(db_session)
 
     response = await client.post(
-        f"/api/v1/approvals/{approval_request.id}/approve", json={"actor": "ops_lead@clouddesk.test"}
+        f"/api/v1/approvals/{approval_request.id}/approve",
+        json={"actor": "ops_lead@clouddesk.test"},
+        headers=staff_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -92,6 +94,7 @@ async def test_reject_approval_does_not_execute_and_writes_audit_log(
     response = await client.post(
         f"/api/v1/approvals/{approval_request.id}/reject",
         json={"actor": "ops_lead@clouddesk.test", "reason": "policy does not allow"},
+        headers=staff_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -107,7 +110,9 @@ async def test_reject_approval_does_not_execute_and_writes_audit_log(
 
 
 async def test_approve_approval_returns_404_for_unknown_id(client: AsyncClient) -> None:
-    response = await client.post(f"/api/v1/approvals/{new_id()}/approve", json={"actor": "ops_lead"})
+    response = await client.post(
+        f"/api/v1/approvals/{new_id()}/approve", json={"actor": "ops_lead"}, headers=staff_auth_headers()
+    )
 
     assert response.status_code == 404
 
@@ -115,8 +120,12 @@ async def test_approve_approval_returns_404_for_unknown_id(client: AsyncClient) 
 async def test_approve_approval_twice_returns_409(client: AsyncClient, db_session: AsyncSession) -> None:
     _customer, approval_request = await _make_pending_refund_action(db_session)
 
-    first = await client.post(f"/api/v1/approvals/{approval_request.id}/approve", json={"actor": "ops_lead"})
-    second = await client.post(f"/api/v1/approvals/{approval_request.id}/approve", json={"actor": "ops_lead"})
+    first = await client.post(
+        f"/api/v1/approvals/{approval_request.id}/approve", json={"actor": "ops_lead"}, headers=staff_auth_headers()
+    )
+    second = await client.post(
+        f"/api/v1/approvals/{approval_request.id}/approve", json={"actor": "ops_lead"}, headers=staff_auth_headers()
+    )
 
     assert first.status_code == 200
     assert second.status_code == 409

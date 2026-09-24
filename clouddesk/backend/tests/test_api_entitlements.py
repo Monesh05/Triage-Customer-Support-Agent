@@ -7,6 +7,7 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tests.conftest import auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan
 
 
@@ -23,6 +24,7 @@ async def test_refresh_entitlement_endpoint_resolves_stale_mismatch(
     response = await client.post(
         "/api/v1/entitlements/refresh",
         json={"customer_id": str(customer.id), "reason": "customer reported 403s"},
+        headers=auth_headers(customer.id),
     )
 
     assert response.status_code == 200

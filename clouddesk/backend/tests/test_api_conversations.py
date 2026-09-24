@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import AgentRunStatus
 from app.services import conversation_service, observability_service
-from tests.conftest import new_id
+from tests.conftest import auth_headers, new_id, staff_auth_headers
 
 _START = datetime(2026, 9, 24, 12, 0, 0, tzinfo=timezone.utc)
 _POLL_TIMEOUT_SECONDS = 5.0
@@ -79,11 +79,13 @@ def _make_fake_workflow(
     return _fake
 
 
-async def _poll_until(client: AsyncClient, thread_id: str, *, is_done) -> dict[str, Any]:
+async def _poll_until(
+    client: AsyncClient, thread_id: str, *, headers: dict[str, str], is_done
+) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     deadline = loop.time() + _POLL_TIMEOUT_SECONDS
     while True:
-        response = await client.get(f"/api/v1/conversations/{thread_id}")
+        response = await client.get(f"/api/v1/conversations/{thread_id}", headers=headers)
         assert response.status_code == 200
         body = response.json()
         if is_done(body):
@@ -103,9 +105,12 @@ async def test_start_conversation_returns_202_immediately(
     monkeypatch.setattr(
         conversation_service, "run_support_workflow", _make_fake_workflow(db_session, delay_seconds=0.2)
     )
+    customer_id = uuid.uuid4()
 
     response = await client.post(
-        "/api/v1/conversations", json={"customer_id": str(uuid.uuid4()), "message": "I need help with my bill."}
+        "/api/v1/conversations",
+        json={"customer_id": str(customer_id), "message": "I need help with my bill."},
+        headers=auth_headers(customer_id),
     )
 
     assert response.status_code == 202
@@ -115,7 +120,9 @@ async def test_start_conversation_returns_202_immediately(
     assert body["ticket_id"] is None
 
     # Drain the background task before teardown closes the shared db_session/connection.
-    await _poll_until(client, body["thread_id"], is_done=lambda b: b["status"] != "in_progress")
+    await _poll_until(
+        client, body["thread_id"], headers=auth_headers(customer_id), is_done=lambda b: b["status"] != "in_progress"
+    )
 
 
 async def test_poll_conversation_reflects_progressive_and_final_status(
@@ -127,8 +134,11 @@ async def test_poll_conversation_reflects_progressive_and_final_status(
         _make_fake_workflow(db_session, delay_seconds=0.3, final_response="Your billing issue is resolved."),
     )
 
+    customer_id = uuid.uuid4()
     start_response = await client.post(
-        "/api/v1/conversations", json={"customer_id": str(uuid.uuid4()), "message": "Why was I charged twice?"}
+        "/api/v1/conversations",
+        json={"customer_id": str(customer_id), "message": "Why was I charged twice?"},
+        headers=auth_headers(customer_id),
     )
     thread_id = start_response.json()["thread_id"]
 
@@ -136,14 +146,19 @@ async def test_poll_conversation_reflects_progressive_and_final_status(
     # running (a synthetic trailing "in_progress" step stands in for it, per this endpoint's
     # design — see app.api.v1.conversations._build_steps).
     mid_flight = await _poll_until(
-        client, thread_id, is_done=lambda body: any(s["step"] == "Understanding request" for s in body["steps"])
+        client,
+        thread_id,
+        headers=auth_headers(customer_id),
+        is_done=lambda body: any(s["step"] == "Understanding request" for s in body["steps"]),
     )
     assert mid_flight["status"] == "in_progress"
     assert mid_flight["steps"][0] == {"step": "Understanding request", "status": "done"}
     assert mid_flight["steps"][-1]["status"] == "in_progress"
     assert mid_flight["final_response"] is None
 
-    final_body = await _poll_until(client, thread_id, is_done=lambda body: body["status"] != "in_progress")
+    final_body = await _poll_until(
+        client, thread_id, headers=auth_headers(customer_id), is_done=lambda body: body["status"] != "in_progress"
+    )
     assert final_body["status"] == "completed"
     assert final_body["final_response"] == "Your billing issue is resolved."
     assert [s["step"] for s in final_body["steps"]] == ["Understanding request", "Checking billing"]
@@ -151,9 +166,32 @@ async def test_poll_conversation_reflects_progressive_and_final_status(
 
 
 async def test_poll_conversation_returns_404_for_unknown_thread_id(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/conversations/{new_id()}")
+    response = await client.get(f"/api/v1/conversations/{new_id()}", headers=staff_auth_headers())
 
     assert response.status_code == 404
+
+
+async def test_poll_conversation_returns_403_for_a_different_customers_token(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        conversation_service, "run_support_workflow", _make_fake_workflow(db_session, delay_seconds=0.05)
+    )
+    customer_id = uuid.uuid4()
+    start_response = await client.post(
+        "/api/v1/conversations",
+        json={"customer_id": str(customer_id), "message": "Help!"},
+        headers=auth_headers(customer_id),
+    )
+    thread_id = start_response.json()["thread_id"]
+
+    response = await client.get(f"/api/v1/conversations/{thread_id}", headers=auth_headers(new_id()))
+
+    assert response.status_code == 403
+    # Drain the background task before teardown closes the shared db_session/connection.
+    await _poll_until(
+        client, thread_id, headers=auth_headers(customer_id), is_done=lambda b: b["status"] != "in_progress"
+    )
 
 
 async def test_start_conversation_marks_failed_status_on_workflow_exception(
@@ -164,11 +202,16 @@ async def test_start_conversation_marks_failed_status_on_workflow_exception(
 
     monkeypatch.setattr(conversation_service, "run_support_workflow", _fake_failure)
 
+    customer_id = uuid.uuid4()
     start_response = await client.post(
-        "/api/v1/conversations", json={"customer_id": str(uuid.uuid4()), "message": "Help!"}
+        "/api/v1/conversations",
+        json={"customer_id": str(customer_id), "message": "Help!"},
+        headers=auth_headers(customer_id),
     )
     thread_id = start_response.json()["thread_id"]
 
-    final_body = await _poll_until(client, thread_id, is_done=lambda body: body["status"] != "in_progress")
+    final_body = await _poll_until(
+        client, thread_id, headers=auth_headers(customer_id), is_done=lambda body: body["status"] != "in_progress"
+    )
     assert final_body["status"] == "failed"
     assert final_body["final_response"] == conversation_service.GENERIC_FAILURE_MESSAGE

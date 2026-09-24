@@ -31,6 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import get_settings
+from app.core.security import AuthRole, create_access_token
 from app.database.base import Base
 from app.database.session import get_db_session
 from app.main import app
@@ -49,6 +50,7 @@ from app.models import (  # noqa: F401  (register all models on Base.metadata)
     Plan,
     RefundRequest,
     ServiceIncident,
+    StaffUser,
     Subscription,
     SupportPolicy,
     SupportTicket,
@@ -112,6 +114,39 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 def new_id() -> uuid.UUID:
     """Convenience helper for generating a random id in tests (e.g. a not-found lookup)."""
     return uuid.uuid4()
+
+
+def auth_headers(customer_id: uuid.UUID) -> dict[str, str]:
+    """A valid `Authorization` header for the given customer id (Phase 10, spec section 27).
+
+    Issues a real, signed access token directly via app.core.security rather than going through
+    POST /api/v1/auth/login — tests exercising the login endpoint itself live in
+    test_api_auth.py; every other protected-endpoint test only needs a valid token for a customer
+    it already created, which this avoids a redundant extra HTTP round-trip for.
+    """
+    token = create_access_token(AuthRole.CUSTOMER, subject=str(customer_id), customer_id=customer_id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def staff_auth_headers(staff_id: uuid.UUID | None = None) -> dict[str, str]:
+    """A valid `Authorization` header for a staff (internal support-console) token."""
+    token = create_access_token(AuthRole.STAFF, subject=str(staff_id or uuid.uuid4()))
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def staff_user(db_session: AsyncSession) -> StaffUser:
+    """A staff account visible to the same rolled-back-per-test session the `client` fixture
+    uses, for tests that exercise POST /api/v1/auth/staff/login itself (which looks the account
+    up by email/password, unlike `staff_auth_headers` above)."""
+    from app.core.security import hash_password
+
+    staff = StaffUser(
+        name="Test Staff", email=f"staff-{uuid.uuid4()}@clouddesk.example", password_hash=hash_password("staff1234")
+    )
+    db_session.add(staff)
+    await db_session.flush()
+    return staff
 
 
 @pytest.fixture

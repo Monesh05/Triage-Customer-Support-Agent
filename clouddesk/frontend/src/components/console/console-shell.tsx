@@ -11,6 +11,7 @@ import { useState } from "react";
 import { Menu, TerminalSquare } from "lucide-react";
 
 import { ConsoleNavLinks } from "@/components/console/console-nav-links";
+import { LogoutButton } from "@/components/shared/logout-button";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
@@ -58,6 +59,9 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
             <Menu className="size-5" />
           </Button>
           <p className="text-sm font-medium text-muted-foreground">Internal use only</p>
+          <div className="ml-auto">
+            <LogoutButton loginPath="/support-console/login" />
+          </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
       </div>

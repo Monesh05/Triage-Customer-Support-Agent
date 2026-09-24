@@ -4,15 +4,23 @@
 #          20-100+ seconds end-to-end (sequential LLM calls across triage, parallel specialists,
 #          and a bounded resolution/QA reflection loop) so POST here never awaits it directly —
 #          it launches the run as a detached background task (app.services.conversation_service)
-#          and returns 202 Accepted immediately with a `thread_id` to poll.
+#          and returns 202 Accepted immediately with a `thread_id` to poll. Phase 10 (spec
+#          section 27): the acting customer id comes from the authenticated token, not the
+#          request body — `ConversationStartRequest.customer_id` must match the token's own id
+#          (org policy A01: never trust a client-supplied id for authorization), and polling a
+#          conversation is only allowed for the customer who started it (or staff).
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_claims, require_customer_access
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
+from app.core.security import AuthRole, TokenClaims
 from app.database.session import get_db_session
 from app.models.enums import AgentRunStatus
 from app.models.observability import AgentRun
@@ -25,6 +33,8 @@ from app.schemas.conversation import (
 from app.services import conversation_service, observability_service
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
+
+_FORBIDDEN_DETAIL: str = "You do not have access to this resource"
 
 # Safe, customer-facing labels for each agent/node name persisted in an AgentRun row (spec
 # section 25's "✓ Understanding request / ✓ Checking billing / ⟳ Preparing resolution" example).
@@ -61,10 +71,16 @@ def _build_steps(agent_runs: list[AgentRun], overall_status: str) -> list[Conver
 
 
 @router.post("", response_model=ConversationStartResponse, status_code=status.HTTP_202_ACCEPTED)
-async def start_conversation(payload: ConversationStartRequest) -> ConversationStartResponse:
+@limiter.limit(lambda: get_settings().rate_limit_conversations)
+async def start_conversation(
+    request: Request,  # noqa: ARG001 - required by slowapi to key the rate limit.
+    payload: ConversationStartRequest,
+    claims: TokenClaims = Depends(get_current_claims),
+) -> ConversationStartResponse:
     """Start a new customer support conversation. Returns immediately; the multi-agent workflow
     runs in the background and its progress/result is available via GET .../{thread_id}.
     """
+    require_customer_access(payload.customer_id, claims)
     record = conversation_service.start_conversation(
         payload.customer_id, payload.message, payload.conversation_history
     )
@@ -74,14 +90,19 @@ async def start_conversation(payload: ConversationStartRequest) -> ConversationS
 
 @router.get("/{thread_id}", response_model=ConversationStatusResponse)
 async def read_conversation_status(
-    thread_id: str, session: AsyncSession = Depends(get_db_session)
+    thread_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    claims: TokenClaims = Depends(get_current_claims),
 ) -> ConversationStatusResponse:
     """Poll a conversation's current status: safe high-level step progress, and — once the run
     has finished or paused for human approval — the customer-facing `final_response` text.
 
-    Raises a 404 (via the app-wide `NotFoundError` handler) if `thread_id` is unknown.
+    Raises a 404 (via the app-wide `NotFoundError` handler) if `thread_id` is unknown, and a 403
+    if the caller is neither staff nor the customer who started this conversation.
     """
     record = conversation_service.get_conversation(thread_id)
+    if claims.role != AuthRole.STAFF and str(claims.customer_id) != record.customer_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=_FORBIDDEN_DETAIL)
     agent_runs = await observability_service.get_trace_for_thread(session, thread_id)
     steps = _build_steps(agent_runs, record.status)
     ticket_uuid = uuid.UUID(record.ticket_id) if record.ticket_id else None

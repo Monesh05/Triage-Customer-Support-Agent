@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import TicketPriority
 from app.services import ticket_service
-from tests.conftest import new_id
+from tests.conftest import auth_headers, new_id, staff_auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan
 
 
@@ -19,7 +19,7 @@ async def test_get_customer_returns_200_for_existing_customer(
     org, _free, pro = await create_org_and_plan(db_session)
     customer = await create_customer_with_account(db_session, org, pro)
 
-    response = await client.get(f"/api/v1/customers/{customer.id}")
+    response = await client.get(f"/api/v1/customers/{customer.id}", headers=auth_headers(customer.id))
 
     assert response.status_code == 200
     body = response.json()
@@ -28,10 +28,30 @@ async def test_get_customer_returns_200_for_existing_customer(
 
 
 async def test_get_customer_returns_404_for_unknown_customer(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/customers/{new_id()}")
+    response = await client.get(f"/api/v1/customers/{new_id()}", headers=staff_auth_headers())
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
+
+
+async def test_get_customer_returns_403_for_a_different_customers_token(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org, _free, pro = await create_org_and_plan(db_session)
+    customer = await create_customer_with_account(db_session, org, pro)
+
+    response = await client.get(f"/api/v1/customers/{customer.id}", headers=auth_headers(new_id()))
+
+    assert response.status_code == 403
+
+
+async def test_get_customer_returns_401_without_a_token(client: AsyncClient, db_session: AsyncSession) -> None:
+    org, _free, pro = await create_org_and_plan(db_session)
+    customer = await create_customer_with_account(db_session, org, pro)
+
+    response = await client.get(f"/api/v1/customers/{customer.id}")
+
+    assert response.status_code == 401
 
 
 async def test_get_customer_tickets_returns_most_recent_first(
@@ -46,7 +66,9 @@ async def test_get_customer_tickets_returns_most_recent_first(
         db_session, customer.id, "Second issue", "Description two", TicketPriority.HIGH, "test:actor",
     )
 
-    response = await client.get(f"/api/v1/customers/{customer.id}/tickets")
+    response = await client.get(
+        f"/api/v1/customers/{customer.id}/tickets", headers=auth_headers(customer.id)
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -55,6 +77,6 @@ async def test_get_customer_tickets_returns_most_recent_first(
 
 
 async def test_get_customer_tickets_returns_404_for_unknown_customer(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/customers/{new_id()}/tickets")
+    response = await client.get(f"/api/v1/customers/{new_id()}/tickets", headers=staff_auth_headers())
 
     assert response.status_code == 404

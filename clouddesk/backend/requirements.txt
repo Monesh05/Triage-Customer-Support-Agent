@@ -21,3 +21,14 @@ langchain-core==1.6.4
 # Phase 6 (Product RAG, spec section 14): SQLAlchemy/asyncpg type support for Postgres'
 # pgvector extension. Zero transitive dependencies; no known CVEs as of 2026-09-24.
 pgvector==0.5.0
+# Phase 10 (Production hardening, spec section 27): authentication + rate limiting.
+# pyjwt: short-lived JWT issuance/verification. No known CVEs as of 2026-09-24; python-jose was
+# considered and rejected (its ecdsa dependency has had CVEs historically).
+pyjwt==2.10.1
+# bcrypt: password hashing (spec section 27 explicitly requires bcrypt/argon2, never MD5/SHA1).
+# Used directly rather than via passlib (passlib is unmaintained and its bcrypt backend has had
+# compatibility issues with bcrypt>=4.1). No known CVEs as of 2026-09-24.
+bcrypt==4.2.1
+# slowapi: per-IP/per-key rate limiting middleware for FastAPI/Starlette. Thin wrapper around the
+# well-established `limits` library. No known CVEs as of 2026-09-24.
+slowapi==0.1.9

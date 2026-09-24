@@ -17,6 +17,7 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_staff_role
 from app.database.session import get_db_session
 from app.graph.graph import resume_support_workflow
 from app.models.approval import ApprovalRequest
@@ -31,7 +32,7 @@ from app.services.exceptions import InvalidStateError
 
 logger = logging.getLogger("clouddesk.api.approvals")
 
-router = APIRouter(prefix="/approvals", tags=["approvals"])
+router = APIRouter(prefix="/approvals", tags=["approvals"], dependencies=[Depends(require_staff_role)])
 
 
 @router.get("", response_model=list[ApprovalRequestResponse])

@@ -25,11 +25,13 @@ from sqlalchemy import select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
 from app.core.logging import configure_logging  # noqa: E402
+from app.core.security import hash_password  # noqa: E402
 from app.database.engine import AsyncSessionFactory  # noqa: E402
 from app.models.enums import IncidentSeverity, IncidentStatus  # noqa: E402
 from app.models.organization import Organization  # noqa: E402
 from app.models.plan import Plan  # noqa: E402
 from app.models.policy import SupportPolicy  # noqa: E402
+from app.models.staff_user import StaffUser  # noqa: E402
 from data.seed.builders import build_incident, build_organization, build_plan, utc  # noqa: E402
 from data.seed.constants import (  # noqa: E402
     ORGANIZATION_SEEDS,
@@ -65,6 +67,25 @@ async def _seed_organizations(session: AsyncSession) -> dict[str, Organization]:
 async def _seed_policies(session: AsyncSession) -> None:
     for spec in SUPPORT_POLICY_SEEDS:
         session.add(SupportPolicy(**spec))
+
+
+# Single demo staff/support-console account (Phase 10, spec section 27). A config-driven single
+# admin credential (rather than a whole staff-management UI) is the right scope for this project:
+# there is no requirement anywhere in the spec for multiple staff roles/permissions, only a
+# customer-vs-staff distinction, so one seeded account fully exercises that distinction in tests
+# and manual verification without over-building unused staff-management tooling.
+STAFF_DEMO_EMAIL: str = "staff@clouddesk.example"
+STAFF_DEMO_PASSWORD: str = "staff1234"
+
+
+async def _seed_staff_user(session: AsyncSession) -> None:
+    session.add(
+        StaffUser(
+            name="Support Console Staff",
+            email=STAFF_DEMO_EMAIL,
+            password_hash=hash_password(STAFF_DEMO_PASSWORD),
+        )
+    )
 
 
 async def _seed_incidents(session: AsyncSession) -> None:
@@ -130,6 +151,7 @@ async def run_seed() -> None:
             orgs = await _seed_organizations(session)
             await _seed_policies(session)
             await _seed_incidents(session)
+            await _seed_staff_user(session)
 
             for slug, org in zip(
                 ["acme", "globex", "initech", "umbrella", "stark"], orgs.values(), strict=True

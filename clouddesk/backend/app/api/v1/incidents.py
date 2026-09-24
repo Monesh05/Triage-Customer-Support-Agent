@@ -1,5 +1,10 @@
 # app/api/v1/incidents.py
 # Purpose: REST endpoint for listing active/historical service incidents (spec section 7).
+#          Phase 10 (spec section 27) security review: deliberately left UNauthenticated — this is
+#          public service-status information (the same content a public status page would show),
+#          contains no customer-specific or otherwise sensitive data, and every other real-world
+#          status-page product (e.g. status.io-style pages) is intentionally public. Every other
+#          endpoint in this API is customer- or staff-scoped; this is the one deliberate exception.
 # Author: CloudDesk Team
 # Date: 2026-09-21
 

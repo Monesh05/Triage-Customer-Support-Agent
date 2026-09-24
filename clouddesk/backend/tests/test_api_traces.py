@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import AgentRunStatus, TicketPriority
 from app.services import observability_service, ticket_service
-from tests.conftest import new_id
+from tests.conftest import new_id, staff_auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan
 
 _START = datetime(2026, 9, 24, 12, 0, 0, tzinfo=timezone.utc)
@@ -54,7 +54,7 @@ async def test_read_ticket_trace_returns_ordered_runs(client: AsyncClient, db_se
     await _make_agent_run(db_session, ticket_id, "triage", 0)
     await _make_agent_run(db_session, ticket_id, "product", 1)
 
-    response = await client.get(f"/api/v1/tickets/{ticket_id}/trace")
+    response = await client.get(f"/api/v1/tickets/{ticket_id}/trace", headers=staff_auth_headers())
 
     assert response.status_code == 200
     body = response.json()
@@ -67,14 +67,14 @@ async def test_read_ticket_trace_returns_ordered_runs(client: AsyncClient, db_se
 async def test_read_ticket_trace_empty_for_ticket_with_no_runs(client: AsyncClient, db_session: AsyncSession) -> None:
     ticket_id = await _make_ticket(db_session)
 
-    response = await client.get(f"/api/v1/tickets/{ticket_id}/trace")
+    response = await client.get(f"/api/v1/tickets/{ticket_id}/trace", headers=staff_auth_headers())
 
     assert response.status_code == 200
     assert response.json()["runs"] == []
 
 
 async def test_read_ticket_trace_404_for_unknown_ticket(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/tickets/{new_id()}/trace")
+    response = await client.get(f"/api/v1/tickets/{new_id()}/trace", headers=staff_auth_headers())
 
     assert response.status_code == 404
 
@@ -83,7 +83,7 @@ async def test_read_agent_run_returns_single_record(client: AsyncClient, db_sess
     ticket_id = await _make_ticket(db_session)
     agent_run = await _make_agent_run(db_session, ticket_id, "billing", 0)
 
-    response = await client.get(f"/api/v1/traces/{agent_run.id}")
+    response = await client.get(f"/api/v1/traces/{agent_run.id}", headers=staff_auth_headers())
 
     assert response.status_code == 200
     body = response.json()
@@ -92,6 +92,6 @@ async def test_read_agent_run_returns_single_record(client: AsyncClient, db_sess
 
 
 async def test_read_agent_run_404_for_unknown_run_id(client: AsyncClient) -> None:
-    response = await client.get(f"/api/v1/traces/{new_id()}")
+    response = await client.get(f"/api/v1/traces/{new_id()}", headers=staff_auth_headers())
 
     assert response.status_code == 404

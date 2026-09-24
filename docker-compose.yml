@@ -1,8 +1,17 @@
 # docker-compose.yml
 # Purpose: Local development infrastructure for CloudDesk — PostgreSQL database (application
-#          DB), plus the FastAPI backend service for convenience. Uses the pgvector/pgvector
+#          DB), the FastAPI backend, and (Phase 10, spec section 27/31) an optional Next.js
+#          frontend service for a full "docker compose up" experience. Uses the pgvector/pgvector
 #          image (Postgres 16 + the pgvector extension precompiled) instead of plain postgres,
 #          since Phase 6 (Product RAG, spec section 14) requires `CREATE EXTENSION vector`.
+#
+#          `docker compose up postgres` (or just `postgres`) still starts ONLY the database, for
+#          the common case of running the backend/frontend locally via their own dev servers
+#          against a containerized Postgres. `docker compose up` (no service names) starts
+#          everything — postgres + backend + frontend — for a full containerized run. The backend
+#          service still needs a real OPENAI_API_KEY/OPENROUTER_API_KEY and a real JWT_SECRET_KEY
+#          from your shell environment or a `.env` file at the repo root (docker compose reads one
+#          automatically); see .env.example.
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -36,9 +45,31 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://clouddesk:clouddesk@postgres:5432/clouddesk
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-development}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-insecure-default-change-me}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     ports:
       - "8000:8000"
+
+  # Phase 10: optional — not started by `docker compose up postgres` or `up backend`, only when
+  # every service (or no service names) is requested. See module docstring above.
+  frontend:
+    build:
+      context: ./clouddesk/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    container_name: clouddesk-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
 
 volumes:
   clouddesk_postgres_data:

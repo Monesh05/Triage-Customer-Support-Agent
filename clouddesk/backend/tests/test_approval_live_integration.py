@@ -21,6 +21,7 @@ from app.graph.graph import get_support_graph, run_support_workflow
 from app.main import app
 from app.models.approval import ApprovalRequest
 from app.models.enums import PaymentStatus
+from tests.conftest import staff_auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan, create_payment
 
 pytestmark = pytest.mark.integration
@@ -59,7 +60,9 @@ async def test_full_pause_approve_resume_live(committed_session: AsyncSession) -
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
-            f"/api/v1/approvals/{action_id}/approve", json={"actor": "live_integration_test"}
+            f"/api/v1/approvals/{action_id}/approve",
+            json={"actor": "live_integration_test"},
+            headers=staff_auth_headers(),
         )
     print("--- APPROVE RESPONSE ---")
     print(response.status_code, response.json())

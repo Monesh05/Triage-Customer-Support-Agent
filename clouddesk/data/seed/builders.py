@@ -11,6 +11,7 @@ import secrets
 import uuid
 from datetime import date, datetime, timezone
 
+from app.core.security import hash_password
 from app.models.account import Account
 from app.models.api_key import ApiKey
 from app.models.customer import Customer
@@ -55,10 +56,26 @@ def build_plan(name: str, price_monthly: float, api_rate_limit: int, features: l
     )
 
 
+# Every seeded demo customer shares this known password (Phase 10, spec section 27) so a
+# portfolio reviewer can log in as any of them from the login page's "try it" hint. This is a
+# deliberate, clearly-documented demo convenience, never done for a real customer's password.
+DEMO_CUSTOMER_PASSWORD: str = "demo1234"
+
+# Hashing is somewhat expensive (bcrypt is intentionally slow); the ~40 seeded customers all share
+# the same password, so hash it once and reuse the digest rather than re-hashing per customer.
+_DEMO_CUSTOMER_PASSWORD_HASH: str = hash_password(DEMO_CUSTOMER_PASSWORD)
+
+
 def build_customer(
     organization: Organization, name: str, email: str, status: CustomerStatus
 ) -> Customer:
-    return Customer(organization=organization, name=name, email=email, status=status)
+    return Customer(
+        organization=organization,
+        name=name,
+        email=email,
+        status=status,
+        password_hash=_DEMO_CUSTOMER_PASSWORD_HASH,
+    )
 
 
 def build_account(

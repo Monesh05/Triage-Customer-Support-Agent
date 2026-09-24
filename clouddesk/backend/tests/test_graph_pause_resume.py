@@ -100,6 +100,44 @@ async def test_resume_with_approval_completes_the_run(monkeypatch: pytest.Monkey
     assert final_state["approved_actions"]
     assert final_state["executed_actions"]
     assert "approved and completed" in final_state["final_response"]
+    # Regression test for the Phase 5-era status-lag bug (spec section 33 Definition of Done):
+    # `human_approval_required` must be reset to False once a paused run actually resumes and
+    # concludes — app.graph.resolution_nodes.await_human_decision_node used to leave it True
+    # forever (no reducer merges it; only overwrite-on-update), so a resumed run's final state
+    # looked identical to a still-paused one to any caller reading this flag, including
+    # app.services.conversation_service._derive_status (see test below for that caller's view).
+    assert final_state["human_approval_required"] is False
+
+
+async def test_resume_with_approval_updates_conversation_status_to_completed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end regression test for the conversation-status-lag bug at the API-facing layer:
+    a resumed, concluded run must be reported as "completed" (not stuck on "awaiting_approval")
+    by app.services.conversation_service, exactly what GET /api/v1/conversations/{thread_id}
+    returns to a polling customer.
+    """
+    from app.services import conversation_service
+
+    _patch_agents(monkeypatch)
+    paused_state = await run_support_workflow(_CUSTOMER_ID, "Why was I charged twice?")
+    thread_id = paused_state["thread_id"]
+
+    # Register a conversation record the same way app.api.v1.conversations.start_conversation
+    # would have, so record_resumed_workflow (called by app.api.v1.approvals after a decision)
+    # has something to update.
+    conversation_service._conversations[thread_id] = conversation_service.ConversationRecord(
+        thread_id=thread_id, customer_id=_CUSTOMER_ID, status="awaiting_approval"
+    )
+    try:
+        decision = {"actions": [{"action_id": "n/a", "status": "approved"}]}
+        final_state = await resume_support_workflow(thread_id, decision)
+        conversation_service.record_resumed_workflow(thread_id, final_state)
+
+        record = conversation_service.get_conversation(thread_id)
+        assert record.status == "completed"
+    finally:
+        conversation_service._conversations.pop(thread_id, None)
 
 
 async def test_resume_with_rejection_produces_explanatory_response(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -18,6 +18,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
+from tests.conftest import auth_headers
 from tests.factories import create_customer_with_account, create_org_and_plan
 
 pytestmark = pytest.mark.integration
@@ -38,6 +39,7 @@ async def test_conversation_live_start_and_poll_to_completion(committed_session:
         start_response = await client.post(
             "/api/v1/conversations",
             json={"customer_id": str(customer.id), "message": "What is your refund policy?"},
+            headers=auth_headers(customer.id),
         )
         print("\n--- LIVE CONVERSATION START RESPONSE ---")
         print(start_response.status_code, start_response.json())
@@ -50,7 +52,7 @@ async def test_conversation_live_start_and_poll_to_completion(committed_session:
         deadline = loop.time() + _POLL_TIMEOUT_SECONDS
         final_body: dict[str, object] = {}
         while loop.time() < deadline:
-            status_response = await client.get(f"/api/v1/conversations/{thread_id}")
+            status_response = await client.get(f"/api/v1/conversations/{thread_id}", headers=auth_headers(customer.id))
             assert status_response.status_code == 200
             final_body = status_response.json()
             print(f"--- POLL: status={final_body['status']} steps={final_body['steps']} ---")

@@ -7,6 +7,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_claims, require_customer_access
+from app.core.security import TokenClaims
 from app.database.session import get_db_session
 from app.schemas.subscription import (
     EntitlementRefreshRequest,
@@ -22,9 +24,12 @@ _ENTITLEMENT_REFRESH_ACTOR = "api:entitlements.refresh"
 
 @router.post("/refresh", response_model=EntitlementRefreshResponse)
 async def refresh_entitlement_endpoint(
-    payload: EntitlementRefreshRequest, session: AsyncSession = Depends(get_db_session)
+    payload: EntitlementRefreshRequest,
+    session: AsyncSession = Depends(get_db_session),
+    claims: TokenClaims = Depends(get_current_claims),
 ) -> EntitlementRefreshResponse:
     """Re-sync a customer's entitlement to match their current subscription plan."""
+    require_customer_access(payload.customer_id, claims)
     subscription, was_stale = await refresh_entitlement(
         session,
         customer_id=payload.customer_id,

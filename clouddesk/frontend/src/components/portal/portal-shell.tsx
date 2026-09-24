@@ -2,16 +2,18 @@
 
 // name: components/portal/portal-shell.tsx
 // purpose: The customer portal's app shell: a branded sidebar (desktop) / slide-out sheet
-//          (mobile) plus a top bar carrying the demo customer switcher. Wraps server-rendered
-//          page content passed in as `children`, so individual pages stay Server Components.
+//          (mobile) plus a top bar carrying the signed-in customer's email and a sign-out button
+//          (Phase 10, spec section 27 — replaces the Phase 9 demo customer-switcher placeholder
+//          now that real authentication exists). Wraps server-rendered page content passed in as
+//          `children`, so individual pages stay Server Components.
 // author: CloudDesk Team
 // date: 2026-09-24
 
 import { useState } from "react";
 import { Cloud, Menu } from "lucide-react";
 
-import { CustomerSwitcher } from "@/components/portal/customer-switcher";
 import { PortalNavLinks } from "@/components/portal/portal-nav-links";
+import { LogoutButton } from "@/components/shared/logout-button";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
@@ -30,10 +32,10 @@ function BrandMark() {
 }
 
 export function PortalShell({
-  customerId,
+  customerEmail,
   children,
 }: {
-  customerId: string;
+  customerEmail: string;
   children: React.ReactNode;
 }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -67,8 +69,9 @@ export function PortalShell({
           <div className="md:hidden">
             <BrandMark />
           </div>
-          <div className="ml-auto">
-            <CustomerSwitcher customerId={customerId} />
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-xs text-muted-foreground sm:inline">{customerEmail}</span>
+            <LogoutButton loginPath="/login" />
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
