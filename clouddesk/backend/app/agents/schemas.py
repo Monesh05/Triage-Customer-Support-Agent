@@ -73,10 +73,12 @@ class TechnicalAgentResult(BaseModel):
 
 
 class ProductSource(BaseModel):
-    """A single retrieved source citation for a Product Agent answer."""
+    """A single retrieved knowledge-base source citation for a Product Agent answer (spec
+    section 14: "the final answer should retain source metadata where appropriate")."""
 
-    product_id: str
-    name: str
+    document_id: str
+    title: str
+    category: str
 
 
 class ProductAgentResult(BaseModel):

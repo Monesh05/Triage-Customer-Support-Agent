@@ -1,8 +1,10 @@
 # app/agents/product.py
 # Purpose: Product Agent (spec section 13). Answers product/documentation questions using ONLY
-#          search_product_docs (spec section 14 notes real pgvector RAG is a later phase; this
-#          keyword search over app.models.product.Product is the only grounding available now).
-#          Must cite only what was actually retrieved and never invent doc content.
+#          search_product_docs, now backed by real pgvector semantic search over the Phase 6
+#          Product RAG knowledge base (spec section 14) instead of the earlier keyword stub.
+#          Must cite only what was actually retrieved and never invent doc content; the tool
+#          itself enforces a minimum-similarity floor, so an empty `matches` list here means
+#          "genuinely not found," not "search failed to look hard enough."
 # Author: CloudDesk Team
 # Date: 2026-09-24
 
@@ -23,21 +25,26 @@ You answer ONLY product/documentation questions (features, pricing tiers, how so
 how to do something). You have no visibility into a specific customer's billing, account, or
 technical state — do not speculate about their individual situation.
 
-You have exactly one tool: search_product_docs. This is a keyword search over CloudDesk's
-current product/feature catalog — it is NOT a full documentation corpus (a real semantic search
-over a full knowledge base is a future capability, not available to you now).
+You have exactly one tool: search_product_docs. It performs a real semantic search over
+CloudDesk's product knowledge base (product documentation, pricing, API documentation,
+troubleshooting guides, billing/refund policy, account recovery, and feature documentation),
+optionally filtered by `category` or `product`. It already applies a minimum-relevance
+threshold, so if it returns no matches, that means nothing relevant genuinely exists in the
+knowledge base — not that you should try to answer from general knowledge instead.
 
-Call search_product_docs with relevant keywords from the question before answering. Your answer
-must be grounded ONLY in what the tool actually returned:
-- If it returns relevant matches, answer using those matches and list them in `sources`, set
-  `grounded` to true.
+Call search_product_docs with a natural-language version of the question before answering.
+Your answer must be grounded ONLY in what the tool actually returned:
+- If it returns matches, answer using their `chunk_text` and cite each one in `sources` using
+  its `document_id`, `title`, and `category` exactly as returned. Set `grounded` to true.
 - If it returns no matches (or the tool call fails), say plainly that you could not find
-  documentation on this in the current catalog — do NOT invent product details. Set `grounded`
-  to false and leave `sources` empty."""
+  documentation on this in the current knowledge base — do NOT invent product details. Set
+  `grounded` to false and leave `sources` empty."""
 
 
-async def _search_product_docs(query: str) -> ToolResult[object]:
-    return await product_tools.search_product_docs(query)
+async def _search_product_docs(
+    query: str, category: str | None = None, product: str | None = None
+) -> ToolResult[object]:
+    return await product_tools.search_product_docs(query, category=category, product=product)
 
 
 def _build_tools() -> list[ToolSpec]:
@@ -45,10 +52,26 @@ def _build_tools() -> list[ToolSpec]:
     return [
         ToolSpec(
             name="search_product_docs",
-            description="Keyword-search CloudDesk's current product/feature catalog.",
+            description=(
+                "Semantically search CloudDesk's product knowledge base (docs, pricing, API, "
+                "troubleshooting, billing/refund policy, account recovery, feature docs)."
+            ),
             parameters={
                 "type": "object",
-                "properties": {"query": {"type": "string", "description": "Search keywords"}},
+                "properties": {
+                    "query": {"type": "string", "description": "Natural-language search query"},
+                    "category": {
+                        "type": "string",
+                        "description": (
+                            "Optional exact category filter, e.g. 'pricing', 'troubleshooting', "
+                            "'refund policy'."
+                        ),
+                    },
+                    "product": {
+                        "type": "string",
+                        "description": "Optional exact product filter, e.g. 'CloudDesk API'.",
+                    },
+                },
                 "required": ["query"],
             },
             handler=_search_product_docs,

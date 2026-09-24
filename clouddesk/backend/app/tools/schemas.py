@@ -76,22 +76,34 @@ class ErrorLogSearchData(BaseModel):
 
 
 class ProductDocMatchData(BaseModel):
-    """A single product/feature keyword-search match."""
+    """A single semantically-retrieved knowledge-base chunk match (spec section 14).
 
-    product_id: uuid.UUID
-    name: str
-    description: str
+    Carries the full source metadata (document_id/title/category/product/version/source/
+    updated_at) plus the retrieved chunk text and its similarity score, so the Product Agent
+    can cite real sources rather than inventing them.
+    """
+
+    document_id: str
+    title: str
+    category: str
+    product: str
+    version: str
+    source: str
+    updated_at: str
+    chunk_text: str
+    score: float
 
 
 class ProductDocSearchData(BaseModel):
-    """Result of a product-doc search.
+    """Result of a Product RAG semantic search (spec section 14: pgvector + metadata filtering).
 
-    NOTE: keyword (ILIKE) substring search over app.models.product.Product only. Semantic/
-    vector search over a real documentation corpus (spec section 14, pgvector) is a later
-    phase; this is not that.
+    `matches` is already ordered best-first and filtered by the configured minimum-similarity
+    threshold — an empty list is a normal, valid "nothing relevant found" outcome.
     """
 
     query: str
+    category: str | None = None
+    product: str | None = None
     matches: list[ProductDocMatchData]
 
 

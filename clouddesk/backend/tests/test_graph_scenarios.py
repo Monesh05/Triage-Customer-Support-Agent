@@ -59,7 +59,9 @@ def _technical(status: str = "resolved") -> TechnicalAgentResult:
 
 def _product() -> ProductAgentResult:
     return ProductAgentResult(
-        answer="Pro includes API access.", sources=[{"product_id": "p1", "name": "Pro plan"}], grounded=True
+        answer="Pro includes API access.",
+        sources=[{"document_id": "pricing-plans", "title": "CloudDesk Pricing Plans", "category": "pricing"}],
+        grounded=True,
     )
 
 

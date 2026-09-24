@@ -13,6 +13,7 @@ from app.models.audit_log import AuditLog
 from app.models.customer import Customer
 from app.models.incident import ServiceIncident
 from app.models.invoice import Invoice
+from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.organization import Organization
 from app.models.payment import Payment, RefundRequest
 from app.models.plan import Plan
@@ -31,6 +32,8 @@ __all__ = [
     "Customer",
     "ServiceIncident",
     "Invoice",
+    "KnowledgeChunk",
+    "KnowledgeDocument",
     "Organization",
     "Payment",
     "RefundRequest",

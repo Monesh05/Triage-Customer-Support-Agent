@@ -27,6 +27,7 @@ os.environ.setdefault(
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import get_settings
@@ -40,6 +41,8 @@ from app.models import (  # noqa: F401  (register all models on Base.metadata)
     Customer,
     Entitlement,
     Invoice,
+    KnowledgeChunk,
+    KnowledgeDocument,
     Organization,
     Payment,
     Plan,
@@ -53,9 +56,12 @@ from app.models import (  # noqa: F401  (register all models on Base.metadata)
 
 
 async def _create_schema() -> None:
+    """Create the test schema fresh, including the `vector` extension Phase 6's
+    KnowledgeChunk.embedding column (pgvector) requires."""
     settings = get_settings()
     engine = create_async_engine(settings.database_url, pool_pre_ping=True)
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()

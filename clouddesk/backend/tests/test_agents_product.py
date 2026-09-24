@@ -1,7 +1,8 @@
 # tests/test_agents_product.py
 # Purpose: Unit tests for the Product Agent (app.agents.product). Mocks the LLM client layer AND
-#          the underlying Phase 2 search_product_docs tool. Covers the happy (grounded) path,
-#          the ungrounded "no matches" path, malformed-output handling, and the exact
+#          the underlying search_product_docs tool (Phase 6: real pgvector retrieval, mocked
+#          here at the tool boundary). Covers the happy (grounded) path with rich source
+#          metadata, the ungrounded "no matches" path, malformed-output handling, and the exact
 #          single-tool allowlist (spec section 13).
 # Author: CloudDesk Team
 # Date: 2026-09-24
@@ -34,7 +35,9 @@ async def test_product_agent_happy_path_grounded(monkeypatch: pytest.MonkeyPatch
     ]
     expected = ProductAgentResult(
         answer="MFA can be enabled from account security settings.",
-        sources=[ProductSource(product_id="prod-1", name="MFA")],
+        sources=[
+            ProductSource(document_id="mfa-setup", title="How MFA Works", category="feature documentation")
+        ],
         grounded=True,
     )
     fake_llm.client.beta.chat.completions.parse.return_value = FakeCompletion(
@@ -49,8 +52,9 @@ async def test_product_agent_happy_path_grounded(monkeypatch: pytest.MonkeyPatch
 
     assert isinstance(result, ProductAgentResult)
     assert result.grounded is True
-    assert result.sources[0].name == "MFA"
-    fake_search.assert_awaited_once_with("MFA")
+    assert result.sources[0].document_id == "mfa-setup"
+    assert result.sources[0].category == "feature documentation"
+    fake_search.assert_awaited_once_with("MFA", category=None, product=None)
 
 
 async def test_product_agent_handles_malformed_output(monkeypatch: pytest.MonkeyPatch) -> None:

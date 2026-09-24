@@ -1,12 +1,14 @@
 # docker-compose.yml
-# Purpose: Local development infrastructure for CloudDesk Phase 1 — PostgreSQL database
-#          (application DB), plus the FastAPI backend service for convenience.
+# Purpose: Local development infrastructure for CloudDesk — PostgreSQL database (application
+#          DB), plus the FastAPI backend service for convenience. Uses the pgvector/pgvector
+#          image (Postgres 16 + the pgvector extension precompiled) instead of plain postgres,
+#          since Phase 6 (Product RAG, spec section 14) requires `CREATE EXTENSION vector`.
 # Author: CloudDesk Team
-# Date: 2026-09-21
+# Date: 2026-09-24
 
 services:
   postgres:
-    image: postgres:16.4-alpine
+    image: pgvector/pgvector:pg16
     container_name: clouddesk-postgres
     restart: unless-stopped
     environment:
