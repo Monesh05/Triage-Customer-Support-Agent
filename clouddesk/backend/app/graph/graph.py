@@ -60,6 +60,11 @@ SPECIALIST_NODES: tuple[str, ...] = ("billing", "account", "technical", "product
 # *different* customers' conversations.
 CHECKPOINTER_POOL_MAX_SIZE: int = 10
 
+# How long a checkpointer connection may sit idle in the pool before it is proactively closed and
+# reopened, rather than risk it being one a suspend-on-idle provider (e.g. Neon's free tier) has
+# already terminated server-side. Comfortably under typical free-tier auto-suspend windows.
+CHECKPOINTER_POOL_MAX_IDLE_SECONDS: float = 120.0
+
 _checkpointer: AsyncPostgresSaver | None = None
 _checkpointer_pool: AsyncConnectionPool | None = None
 # Created lazily (never at module import time) and reset alongside the checkpointer in
@@ -114,10 +119,22 @@ async def get_checkpointer() -> AsyncPostgresSaver:
         # required: its own schema-setup migrations run `CREATE INDEX CONCURRENTLY`, which
         # Postgres refuses inside a multi-statement transaction block). `row_factory=dict_row` and
         # `prepare_threshold=0` likewise match that reference implementation's connection setup.
+        #
+        # `check=AsyncConnectionPool.check_connection` and a short `max_idle` (found live in
+        # production, 2026-09-25): a managed Postgres provider that auto-suspends on idle (e.g.
+        # Neon's free tier) unilaterally closes connections the pool still believes are healthy,
+        # which surfaced as `psycopg.errors.AdminShutdown` on every single conversation - the pool
+        # kept handing out connections the server had already killed. `check_connection` pings a
+        # connection with a cheap query before handing it to a caller and transparently discards
+        # and replaces it if that fails; `max_idle` proactively recycles connections that have sat
+        # unused long enough to be a suspend/AdminShutdown risk, rather than waiting to discover
+        # they are dead on the next request.
         pool = AsyncConnectionPool(
             conn_string,
             open=False,
             max_size=CHECKPOINTER_POOL_MAX_SIZE,
+            max_idle=CHECKPOINTER_POOL_MAX_IDLE_SECONDS,
+            check=AsyncConnectionPool.check_connection,
             kwargs={"autocommit": True, "row_factory": dict_row, "prepare_threshold": 0},
         )
         try:
