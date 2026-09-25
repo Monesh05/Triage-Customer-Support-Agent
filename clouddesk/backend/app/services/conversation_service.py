@@ -204,6 +204,25 @@ async def start_conversation(
     return record
 
 
+async def get_latest_conversation_for_ticket(ticket_id: uuid.UUID) -> ConversationRecord | None:
+    """The most recently started conversation tied to a ticket, or `None` if the ticket has none
+    yet (e.g. one created directly via `POST /tickets` rather than through the chat, or whose
+    workflow run has not reached ticket auto-creation yet).
+
+    Used by the customer-facing ticket summary (`app.schemas.ticket.TicketSummaryResponse`) to
+    surface the same already-sanitized `final_response` text the chat itself showed while the run
+    was live — never a re-derivation from the raw Agent Observability trace.
+    """
+    async with get_session() as session:
+        result = await session.execute(
+            select(ConversationRecord)
+            .where(ConversationRecord.ticket_id == str(ticket_id))
+            .order_by(ConversationRecord.started_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+
 async def record_resumed_workflow(thread_id: str, final_state: SupportState) -> None:
     """Update a tracked conversation's status after its paused run was resumed (Phase 5's
     resume_support_workflow, invoked by app.api.v1.approvals once a pending action is decided).

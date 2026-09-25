@@ -160,6 +160,20 @@ export interface TicketTrace {
   runs: AgentRun[];
 }
 
+/** Customer-safe ticket outcome summary (post-launch, 2026-09-25): used by the customer portal's
+ * ticket detail page INSTEAD OF `TicketTrace`, which carries raw specialist tool_calls/
+ * tool_results/reasoning meant for staff only. */
+export interface TicketSummary {
+  ticket_id: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  created_at: string;
+  escalated: boolean;
+  resolution_message: string | null;
+}
+
 export interface ApprovalRequest {
   id: string;
   customer_id: string;

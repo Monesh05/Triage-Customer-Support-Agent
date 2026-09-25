@@ -3,9 +3,10 @@
 #          Pydantic schemas (status/severity/priority fields), per spec section 5. Extended in
 #          Phase 5 with `ApprovalStatus` and human-in-the-loop audit action types (spec 22, 27).
 #          Extended in Phase 7 with `AgentRunStatus` for the agent-observability trace records
-#          (spec section 24).
+#          (spec section 24). Extended post-launch (2026-09-25) with `AuditActionType.TICKET_CLOSED`
+#          for the new customer-facing "close my ticket" action.
 # Author: CloudDesk Team
-# Date: 2026-09-24
+# Date: 2026-09-25
 
 import enum
 
@@ -104,6 +105,8 @@ class AuditActionType(str, enum.Enum):
     # Phase 10 (spec section 27, org policy A09): authentication events are sensitive actions too.
     LOGIN_SUCCEEDED = "login_succeeded"
     LOGIN_FAILED = "login_failed"
+    # Post-launch (2026-09-25): a customer closing their own ticket is a sensitive state change.
+    TICKET_CLOSED = "ticket_closed"
 
 
 class ApprovalStatus(str, enum.Enum):
