@@ -28,6 +28,7 @@ import asyncio
 import logging
 import uuid
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -79,9 +80,17 @@ def _get_init_lock() -> asyncio.Lock:
 def _psycopg_conn_string(database_url: str) -> str:
     """Adapt the app's SQLAlchemy connection URL (`postgresql+asyncpg://...`) into the plain
     libpq connection string `psycopg` (the driver `langgraph-checkpoint-postgres` uses — not
-    `asyncpg`) expects. Same host/port/database/credentials; only the URL scheme differs.
+    `asyncpg`) expects. Same host/port/database/credentials; only the URL scheme differs, PLUS
+    one query-parameter-naming difference: SQLAlchemy's asyncpg dialect forwards URL query
+    params as literal Python kwargs to `asyncpg.connect()`, which has an `ssl` parameter (not
+    `sslmode`) - so `DATABASE_URL` uses `?ssl=require` for managed providers like Neon that
+    require TLS. `psycopg`/libpq instead expects the standard `sslmode` parameter name and
+    rejects a bare `ssl` query parameter outright - so that one key needs translating here.
     """
-    return database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    parsed = urlsplit(database_url.replace("postgresql+asyncpg://", "postgresql://", 1))
+    query_params = parse_qsl(parsed.query, keep_blank_values=True)
+    translated = [("sslmode" if key == "ssl" else key, value) for key, value in query_params]
+    return urlunsplit(parsed._replace(query=urlencode(translated)))
 
 
 async def get_checkpointer() -> AsyncPostgresSaver:
