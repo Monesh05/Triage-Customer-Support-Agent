@@ -30,10 +30,12 @@ def test_route_after_triage_explicit_escalation_flag() -> None:
     assert route_after_triage(state) == ["escalation"]
 
 
-def test_route_after_triage_explicit_escalation_flag_ignores_other_agents() -> None:
-    """If triage ever returns escalation alongside specialists, escalation wins (skip specialists)."""
+def test_route_after_triage_escalation_alongside_specialist_still_investigates() -> None:
+    """If triage lists escalation alongside a real specialist (e.g. a severe-but-investigable
+    billing issue), the specialist still runs first rather than skipping investigation entirely —
+    only an explicit human request in the customer's own words should do that (spec Scenario G)."""
     state = _state_with(required_agents=["escalation", "billing"])
-    assert route_after_triage(state) == ["escalation"]
+    assert route_after_triage(state) == ["billing"]
 
 
 def test_route_after_triage_keyword_fallback_for_explicit_human_request() -> None:

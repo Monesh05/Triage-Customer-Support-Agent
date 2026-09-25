@@ -34,9 +34,12 @@ HUMAN_REQUEST_KEYWORDS: tuple[str, ...] = (
 
 
 def _explicit_human_request(state: SupportState) -> bool:
-    """True if triage flagged escalation directly, or the raw message asks for a human."""
-    if "escalation" in state.get("required_agents", []):
-        return True
+    """True if the customer's own words ask for a human — the only case that should skip
+    investigation entirely (spec Scenario G). Triage flagging "escalation" is NOT checked here:
+    triage may reasonably add "escalation" alongside a real specialist for a merely
+    high-priority/frustrated case (its prompt allows this for "severe/sensitive" situations), and
+    skipping investigation whenever that happens would mean a normal, fully investigable billing
+    complaint never gets looked at by the Billing Agent at all. See `route_after_triage`."""
     message = state.get("customer_message", "").lower()
     return any(keyword in message for keyword in HUMAN_REQUEST_KEYWORDS)
 
@@ -44,9 +47,12 @@ def _explicit_human_request(state: SupportState) -> bool:
 def route_after_triage(state: SupportState) -> list[str]:
     """Decide which specialist node(s) run next, per spec section 20's parallel fan-out.
 
-    Returns a list of node names. `["escalation"]` skips specialists entirely (explicit human
-    request or a severe/sensitive signal from triage). An empty `required_agents` with no
-    recognizable specialist also falls back to escalation rather than silently doing nothing.
+    Returns a list of node names. `["escalation"]` skips specialists entirely only when the
+    customer explicitly asked for a human (in their own words) or triage recognized NO specialist
+    at all — including when "escalation" was the ONLY thing triage listed. If triage listed
+    "escalation" ALONGSIDE one or more real specialists, the specialists still run first: real
+    evidence should inform the handoff, and genuine escalation is still reachable afterwards via
+    QA's own `escalation_needed` check or the reflection loop exhausting MAX_ITERATIONS.
     """
     if _explicit_human_request(state):
         logger.info("route_after_triage decision=escalation reason=explicit_human_request")

@@ -25,9 +25,17 @@ For each message, determine:
 - priority: "low", "medium", "high", or "urgent" based on business impact and urgency language.
 - sentiment: "frustrated", "angry", "confused", "neutral", or "satisfied".
 - required_agents: which specialist agents ("billing", "account", "technical", "product",
-  "escalation") should investigate. Include "escalation" only if the customer explicitly asks
-  for a human, or the message describes a clearly severe/sensitive situation you cannot
-  responsibly leave to automated investigation alone.
+  "escalation") should investigate. A frustrated tone, high priority, or a routine complaint
+  (a duplicate charge, a locked account, an API error) is NOT by itself grounds for
+  "escalation" — those are exactly what the specialists exist to investigate; do not add
+  "escalation" just because the customer is annoyed. Only include "escalation" when the
+  customer explicitly asks to speak to a human, OR the situation is one no automated
+  investigation should attempt at all (e.g. a legal threat, a safety/self-harm concern, a
+  suspected security breach, fraud, or a request outside anything CloudDesk support can
+  address). When you do include "escalation" for a severe/sensitive situation that ALSO
+  involves a billing/account/technical/product question, still include the relevant
+  specialist(s) too — do not use "escalation" as a way to skip investigation of a legitimate
+  question just because the situation is also serious.
 - reason: one or two sentences explaining your classification.
 
 Respond only with the structured fields requested. Do not propose a fix, refund, or answer."""
