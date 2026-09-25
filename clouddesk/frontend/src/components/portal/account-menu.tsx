@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -63,7 +64,12 @@ export function AccountMenu({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={variant === "sidebar" ? "start" : "end"} className="w-56">
-        <DropdownMenuLabel className="truncate font-normal text-foreground">{email}</DropdownMenuLabel>
+        {/* DropdownMenuLabel maps to Base UI's Menu.GroupLabel, which throws (production error
+            #31, "MenuGroupContext is missing") if it isn't inside a Menu.Group - unlike Radix,
+            where the equivalent label has no such requirement. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="truncate font-normal text-foreground">{email}</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
