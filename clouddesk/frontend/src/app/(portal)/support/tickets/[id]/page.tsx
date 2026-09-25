@@ -47,7 +47,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                 Opened {formatDateTime(ticket.created_at)}
               </p>
             </div>
-            <StatusBadge status={ticket.status} />
+            <div className="flex items-center gap-2">
+              <StatusBadge status={ticket.priority} />
+              <StatusBadge status={ticket.status} />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

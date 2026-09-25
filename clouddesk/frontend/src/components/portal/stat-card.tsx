@@ -1,8 +1,9 @@
 // name: components/portal/stat-card.tsx
-// purpose: A single quick-stat tile for the dashboard (usage this period, next invoice, account
-//          status, etc.) — a small, reusable presentational building block.
+// purpose: A single quick-stat "MetricCard" tile (spec sections 4 and 15) reused across the
+//          dashboard and usage page — small label, large primary value, secondary context, and a
+//          small icon, all at a consistent height so a row of these always lines up.
 // author: CloudDesk Team
-// date: 2026-09-24
+// date: 2026-09-25
 
 import type { LucideIcon } from "lucide-react";
 
@@ -30,9 +31,9 @@ export function StatCard({
         : "bg-primary/10 text-primary";
 
   return (
-    <Card className="border-border/70">
-      <CardContent className="flex items-start justify-between gap-3 px-5 py-4">
-        <div className="space-y-1">
+    <Card className="h-full border-border/70 transition-shadow hover:shadow-sm">
+      <CardContent className="flex h-full items-start justify-between gap-3 px-5 py-4">
+        <div className="space-y-1.5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </p>

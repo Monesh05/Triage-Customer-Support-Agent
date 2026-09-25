@@ -1,20 +1,18 @@
 // name: components/chat/ticket-history-list.tsx
 // purpose: /support page's sidebar: the customer's past support tickets, so they can see history
 //          alongside starting a new AI Support conversation. Each ticket links through to its own
-//          customer-facing detail page (post-launch, 2026-09-25) at /support/tickets/[id] — that
-//          page did not exist before, so the status badge here used to look like a button but did
-//          nothing when clicked.
+//          customer-facing detail page at /support/tickets/[id]. 2026-09-25 redesign (spec section
+//          12): tickets now render as the shared TicketCard component instead of a bespoke list
+//          item, so the same visual treatment is used everywhere a ticket is listed.
 // author: CloudDesk Team
 // date: 2026-09-25
 
 import { History } from "lucide-react";
-import Link from "next/link";
 
 import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { TicketCard } from "@/components/shared/ticket-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SupportTicket } from "@/lib/api/types";
-import { formatDate } from "@/lib/format";
 
 export function TicketHistoryList({ tickets }: { tickets: SupportTicket[] }) {
   return (
@@ -29,19 +27,10 @@ export function TicketHistoryList({ tickets }: { tickets: SupportTicket[] }) {
         {tickets.length === 0 ? (
           <EmptyState icon={History} title="No tickets yet" description="Start a conversation to create one." />
         ) : (
-          <ul className="max-h-[calc(100vh-16rem)] space-y-1 overflow-y-auto">
+          <ul className="max-h-[calc(100vh-20rem)] space-y-1 overflow-y-auto">
             {tickets.map((ticket) => (
               <li key={ticket.id}>
-                <Link
-                  href={`/support/tickets/${ticket.id}`}
-                  className="block rounded-lg border border-transparent px-2.5 py-2 hover:border-border hover:bg-muted/40"
-                >
-                  <p className="truncate text-sm font-medium">{ticket.subject}</p>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">{formatDate(ticket.created_at)}</span>
-                    <StatusBadge status={ticket.status} className="text-[10px]" />
-                  </div>
-                </Link>
+                <TicketCard ticket={ticket} />
               </li>
             ))}
           </ul>

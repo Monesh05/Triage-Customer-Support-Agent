@@ -27,7 +27,7 @@ export default async function UsagePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Usage</h1>
+        <h1 className="text-[28px] font-semibold tracking-tight">Usage</h1>
         <p className="text-sm text-muted-foreground">API usage against your plan&apos;s limits.</p>
       </div>
       <UsageOverview usageRecords={usageRecords} apiRateLimit={apiRateLimit} />
