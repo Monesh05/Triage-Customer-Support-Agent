@@ -163,6 +163,16 @@ python -m data.seed.seed      # from clouddesk/backend, seeds ~40 demo customers
 uvicorn app.main:app --reload --port 8000
 ```
 
+> **Windows note**: always include `--reload` (or `--workers N>1`) when running `uvicorn`
+> directly on Windows. The 2026-09-25 Postgres checkpointer uses `psycopg` (v3) in async mode,
+> which refuses to run on Windows' default `ProactorEventLoop`. `uvicorn` only switches to a
+> compatible selector-based loop on Windows when it spawns a subprocess (`--reload` or multiple
+> workers do this); without either flag, a plain `uvicorn app.main:app --port 8000` will fail at
+> startup with `psycopg_pool.PoolTimeout`. This is a Windows-local-dev-only concern — the
+> targeted production platforms (Railway/Render/Fly.io) are Linux, where this event-loop
+> distinction does not exist. `tests/conftest.py` sets the selector policy explicitly for the
+> same reason, since pytest-asyncio does not set it the way `uvicorn --reload` does.
+
 Environment variables (see `.env.example` for the full list with comments):
 
 | Variable | Purpose |
@@ -244,14 +254,37 @@ Railway/Render/Fly.io or similar).
   `CORS_ALLOWED_ORIGINS` set to the real deployed frontend origin.
 - **Migrations on deploy**: run `alembic upgrade head` as a release step before the new
   backend version starts serving traffic, not from inside the running app.
-- **LangGraph checkpointer**: the graph is compiled with an in-process `MemorySaver`
-  (`app/graph/graph.py`) — paused human-in-the-loop runs do **not** survive a process
-  restart. A real deployment needs a persistent checkpointer (e.g.
-  `langgraph-checkpoint-postgres`, evaluated for CVEs/pinned like every other dependency)
-  before HITL is safe to run with more than one backend instance or across restarts.
-- **Conversation status registry**: similarly, `app/services/conversation_service.py`'s
-  polling registry is in-process/in-memory — a multi-instance deployment needs this moved
-  to shared storage (Redis, or the database) or sticky routing per `thread_id`.
+- **LangGraph checkpointer (fixed 2026-09-25)**: the graph is now compiled with
+  `langgraph-checkpoint-postgres`'s `AsyncPostgresSaver` (`app/graph/graph.py`), pinned to
+  `3.1.2` (the first release after CVE-2026-71433, a namespace-matching information-disclosure
+  issue in the Postgres/SQLite checkpoint stores, was patched in 3.1.1) and backed by the same
+  `DATABASE_URL` Postgres instance the rest of the app uses — a separate connection pool
+  against the same database, not a second database. Paused human-in-the-loop runs and
+  in-flight threads now survive a full backend process restart, verified both by an automated
+  test that discards the in-process checkpointer/pool and rebuilds it from scratch
+  (`tests/test_graph_pause_resume.py::test_resume_survives_a_simulated_backend_restart`) and by
+  a real `uvicorn` kill-and-restart. **Setup**: the checkpointer's own tables (`checkpoints`,
+  `checkpoint_writes`, `checkpoint_blobs`, `checkpoint_migrations`) are created/upgraded by
+  calling `AsyncPostgresSaver.setup()` once at FastAPI startup (`app/main.py`'s lifespan), not
+  via an Alembic migration — the library tracks its own migration version internally and
+  documents `.setup()` as safe/idempotent to call on every startup, which an Alembic revision
+  hand-copying its SQL would fight with the next time the library adds a migration of its own.
+  Nothing extra needs to be run manually; the first app startup against a fresh database
+  creates these tables automatically. This still shares one connection pool per backend
+  process — running more than one backend instance is safe (every instance can read/write any
+  thread's checkpoint from the shared database), but each instance's pool should be sized for
+  its own expected concurrency (`CHECKPOINTER_POOL_MAX_SIZE` in `app/graph/graph.py`).
+- **Conversation status registry (fixed 2026-09-25)**: `app/services/conversation_service.py`'s
+  polling registry is now the `conversation_records` table (Alembic revision
+  `a7d3e91f5c02`, model `app.models.conversation.ConversationRecord`) instead of an in-process
+  `dict`, so `GET /api/v1/conversations/{thread_id}` keeps working across a restart for a
+  conversation that is in progress, paused awaiting approval, or already completed. Every
+  read/write goes through its own DB session rather than a shared in-memory object, which also
+  means it already works correctly across multiple backend instances behind a load balancer —
+  no sticky routing per `thread_id` needed. (A pure reconstruction from the LangGraph checkpoint
+  + the Phase 7 `AgentRun` trace rows, avoiding a new table entirely, was considered and
+  rejected — seeing this module's docstring for why: `status="failed"` isn't reliably
+  distinguishable from "still in progress" using only checkpoint state.)
 - **`clouddesk_test` seed data**: the test database is schema-only (tables created fresh
   per test session, never seeded) — this is intentional for test isolation, but means there
   is no long-lived "staging with realistic data" database; use the seeded dev database (or
@@ -289,9 +322,11 @@ Referencing the spec's Definition of Done (section 33):
   history for the itemized pass.
 
 **Known limitations (by design, documented rather than silently accepted):**
-- The LangGraph checkpointer and the conversation-status registry are both in-process/
-  in-memory — neither survives a restart or scales past one backend instance without
-  further work (see Production Deployment notes above).
+- **Fixed 2026-09-25**: the LangGraph checkpointer (now `AsyncPostgresSaver`) and the
+  conversation-status registry (now the `conversation_records` table) are both durably
+  persisted to Postgres and survive a backend restart — see the "Production deployment
+  notes" section above for the full design/verification writeup. What is still NOT covered
+  by this fix: rate-limit state (see below) remains in-process/per-instance.
 - No live cloud deployment was performed — the Production Deployment section is guidance,
   not a verified runbook.
 - The `clouddesk_test` database has no seed data by design (schema-only, fresh per test

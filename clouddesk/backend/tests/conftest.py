@@ -15,6 +15,7 @@
 
 import asyncio
 import os
+import sys
 import uuid
 from collections.abc import AsyncGenerator
 
@@ -24,6 +25,15 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://clouddesk:clouddesk@localhost:5433/clouddesk_test",
 )
+
+# The 2026-09-25 production-hardening fix's Postgres checkpointer uses `psycopg` (v3) in async
+# mode, which refuses to run on Windows' default `ProactorEventLoop` (it needs a selector-based
+# loop for its socket waiter). `uvicorn` already sets this same policy in real deployments
+# (uvicorn/loops/asyncio.py) since it has no `uvloop` build for Windows; pytest-asyncio does not,
+# so it must be set explicitly here, before any test creates an event loop. Harmless for
+# asyncpg/SQLAlchemy (neither requires Proactor-only features such as subprocess pipes).
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -109,6 +119,48 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+async def _reset_checkpointer_pool() -> AsyncGenerator[None, None]:
+    """Close the LangGraph Postgres checkpointer's connection pool after every test.
+
+    Each test function runs in its own event loop (see this module's docstring on `db_session`
+    for the same asyncpg constraint); a `psycopg` connection pool opened during one test's loop
+    cannot be reused once that loop is closed. `app.graph.graph.get_checkpointer()` lazily
+    recreates the pool (and re-runs its cheap, idempotent `.setup()`) on next use, so tests never
+    share a pool across event loops.
+    """
+    from app.graph.graph import close_checkpointer
+
+    yield
+    await close_checkpointer()
+
+
+@pytest.fixture(autouse=True)
+async def _reset_shared_engine_pool() -> AsyncGenerator[None, None]:
+    """Dispose the app's shared asyncpg engine pool (app.database.engine.engine) around every
+    test, not only the ones using the `committed_session` fixture.
+
+    Before the 2026-09-25 persistence fix, `app.services.conversation_service` never touched
+    `get_session()` (a pure in-memory dict), so tests/test_api_conversations.py never exercised
+    this pool at all despite running many test functions (each its own event loop) back to back.
+    Now that conversation-record reads/writes go through `get_session()`, those tests hit the
+    exact same cross-event-loop asyncpg hazard `committed_session`'s docstring already describes
+    (a pooled connection bound to one test's now-closed event loop cannot be reused by the next
+    test's loop) — so the same disposal `committed_session` already did for its own tests is now
+    needed unconditionally.
+    """
+    from app.database.engine import engine
+    from app.services.conversation_service import drain_background_tasks
+
+    await engine.dispose()
+    yield
+    # Drain any conversation background task still in flight BEFORE disposing the pool (and
+    # before this test's event loop closes) - otherwise its DB session survives into a later
+    # test's loop and fails with "attached to a different loop" once garbage-collected there.
+    await drain_background_tasks()
+    await engine.dispose()
 
 
 def new_id() -> uuid.UUID:

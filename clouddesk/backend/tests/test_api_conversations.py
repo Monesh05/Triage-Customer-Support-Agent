@@ -194,6 +194,46 @@ async def test_poll_conversation_returns_403_for_a_different_customers_token(
     )
 
 
+async def test_conversation_status_survives_a_simulated_backend_restart(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression test for the production-hardening fix (README's former "Production Deployment"
+    gap): the conversation registry must be readable/writable purely from what is durably in
+    Postgres, with nothing relied on from Python process memory.
+
+    Unlike the Phase 9-era in-memory `dict`, `conversation_service` now has no long-lived
+    in-process object for this test to discard to "simulate" a restart — every read/write already
+    round-trips through its own `get_session()` call (see that module's docstring for why). This
+    test instead asserts that fact directly: it starts a conversation, waits for it to reach a
+    terminal status, and confirms nothing under `app.services.conversation_service` still exposes
+    an in-memory registry a restart could lose (the Phase 9-era `_conversations` dict is gone
+    entirely), then confirms the status is still correctly readable via a completely fresh query.
+    """
+    monkeypatch.setattr(
+        conversation_service, "run_support_workflow", _make_fake_workflow(db_session, delay_seconds=0.05)
+    )
+    assert not hasattr(conversation_service, "_conversations")
+
+    customer_id = uuid.uuid4()
+    start_response = await client.post(
+        "/api/v1/conversations",
+        json={"customer_id": str(customer_id), "message": "Why was I charged twice?"},
+        headers=auth_headers(customer_id),
+    )
+    thread_id = start_response.json()["thread_id"]
+
+    final_body = await _poll_until(
+        client, thread_id, headers=auth_headers(customer_id), is_done=lambda body: body["status"] != "in_progress"
+    )
+    assert final_body["status"] == "completed"
+
+    # A fresh, independent lookup (its own new DB session/connection, exactly what a freshly
+    # restarted process's first request would do) sees the same, already-completed record.
+    record = await conversation_service.get_conversation(thread_id)
+    assert record.status == "completed"
+    assert record.customer_id == str(customer_id)
+
+
 async def test_start_conversation_marks_failed_status_on_workflow_exception(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

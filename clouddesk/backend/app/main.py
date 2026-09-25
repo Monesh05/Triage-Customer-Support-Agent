@@ -3,11 +3,28 @@
 #          Next.js frontend calls this API from a different origin), the v1 API router, and
 #          translates service-layer exceptions into structured HTTP error responses. Phase 10
 #          (spec section 27) additionally wires the request-id/security-headers middleware, the
-#          slowapi rate limiter, and its 429 exception handler.
+#          slowapi rate limiter, and its 429 exception handler. The 2026-09-25 production-
+#          hardening follow-up adds an application lifespan that warms up the Postgres-backed
+#          LangGraph checkpointer's connection pool (and runs its one-time/idempotent schema
+#          setup) once at startup rather than lazily on the first request, and closes that pool
+#          cleanly on shutdown (see app.graph.graph.get_checkpointer/close_checkpointer).
 # Author: CloudDesk Team
-# Date: 2026-09-24
+# Date: 2026-09-25
 
+import asyncio
 import logging
+import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+# `psycopg` (used by the Postgres-backed LangGraph checkpointer, see the lifespan below) refuses
+# to run in async mode on Windows' default ProactorEventLoop - it needs a selector-based loop.
+# This must be set before uvicorn creates its event loop, i.e. before anything below does
+# asyncio.run()/get_event_loop() as a side effect of import - hence right at the top of this
+# module, which uvicorn imports before starting its loop. Matches tests/conftest.py's identical
+# fix for the same constraint under pytest-asyncio.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +36,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 from app.core.rate_limit import limiter
+from app.graph.graph import close_checkpointer, get_checkpointer
 from app.services.exceptions import InvalidStateError, NotFoundError
 
 configure_logging()
@@ -26,7 +44,25 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Warm up the checkpointer's connection pool (and its idempotent schema setup) once at
+    startup, so the first real request never pays that cost, and close the pool cleanly on
+    shutdown rather than leaking connections when the process exits.
+    """
+    try:
+        await get_checkpointer()
+    except Exception:
+        logger.exception("checkpointer_startup_failed")
+        raise
+    try:
+        yield
+    finally:
+        await close_checkpointer()
+
+
+app = FastAPI(title=settings.app_name, lifespan=_lifespan)
 
 app.state.limiter = limiter
 

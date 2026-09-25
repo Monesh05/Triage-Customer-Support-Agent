@@ -12,18 +12,31 @@
 #          since a trace with no ticket to hang off of is much less useful, spec sections 7/26);
 #          `resume_support_workflow` continues a previously paused run once a human decision has
 #          been recorded for every one of its pending actions.
+#
+#          Production-hardening follow-up (2026-09-25, closes a gap flagged in the Phase 5 and
+#          Phase 9 reports and in README's "Production Deployment" section): the checkpointer is
+#          now `langgraph-checkpoint-postgres`'s `AsyncPostgresSaver`, backed by the SAME Postgres
+#          database this app already uses (`DATABASE_URL`, via `get_settings()`) rather than the
+#          Phase 5-era in-process `MemorySaver`. A paused-awaiting-approval or in-flight thread's
+#          state now survives a full backend process restart — see `get_checkpointer` and
+#          `close_checkpointer` below for the connection-pool lifecycle, and app.main's lifespan
+#          for where those are actually called.
 # Author: CloudDesk Team
-# Date: 2026-09-24
+# Date: 2026-09-25
 
+import asyncio
 import logging
 import uuid
 from typing import Any
 
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
+from app.core.config import get_settings
 from app.database.session import get_session
 from app.graph import nodes, resolution_nodes
 from app.graph.routing import route_after_finalize, route_after_qa, route_after_triage
@@ -39,13 +52,98 @@ WORKFLOW_TICKET_ACTOR: str = "system:support_workflow"
 
 SPECIALIST_NODES: tuple[str, ...] = ("billing", "account", "technical", "product")
 
-# Phase 5 uses an in-process checkpointer (spec section 22). A single backend process keeps every
-# paused thread's state in memory for the lifetime of the process, which is sufficient for this
-# phase's scope (interrupt/resume mechanics + the approval API) and for tests. It does NOT survive
-# a process restart — `langgraph-checkpoint-postgres` is not an installed dependency yet, and
-# adding it (plus the CVE/version-pinning check every new dependency requires) is left as a
-# Phase 10 (production hardening) follow-up rather than done ad hoc here.
-_CHECKPOINTER = MemorySaver()
+# The checkpointer's own connection pool, sized independently of SQLAlchemy's asyncpg pool (they
+# are two different drivers/pools against the same database — see module docstring). A support
+# workflow run is a single sequential chain of node executions per thread, never many concurrent
+# checkpoint writes for the same run, so a small pool comfortably covers many concurrent
+# *different* customers' conversations.
+CHECKPOINTER_POOL_MAX_SIZE: int = 10
+
+_checkpointer: AsyncPostgresSaver | None = None
+_checkpointer_pool: AsyncConnectionPool | None = None
+# Created lazily (never at module import time) and reset alongside the checkpointer in
+# close_checkpointer(): an asyncio.Lock is bound to whichever event loop first awaits it, and
+# pytest-asyncio gives each test its own event loop (see tests/conftest.py), so a lock created
+# once at import time would hang forever on its second test - the same constraint already
+# documented for the SQLAlchemy engine and this module's connection pool.
+_checkpointer_init_lock: asyncio.Lock | None = None
+
+
+def _get_init_lock() -> asyncio.Lock:
+    global _checkpointer_init_lock
+    if _checkpointer_init_lock is None:
+        _checkpointer_init_lock = asyncio.Lock()
+    return _checkpointer_init_lock
+
+
+def _psycopg_conn_string(database_url: str) -> str:
+    """Adapt the app's SQLAlchemy connection URL (`postgresql+asyncpg://...`) into the plain
+    libpq connection string `psycopg` (the driver `langgraph-checkpoint-postgres` uses — not
+    `asyncpg`) expects. Same host/port/database/credentials; only the URL scheme differs.
+    """
+    return database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
+async def get_checkpointer() -> AsyncPostgresSaver:
+    """Return the process-wide Postgres-backed checkpointer, creating its connection pool and
+    running its idempotent schema setup on first use.
+
+    `AsyncPostgresSaver.setup()` creates (or upgrades) the checkpointer's own tables
+    (`checkpoints`, `checkpoint_writes`, `checkpoint_blobs`) and tracks its own migration version
+    in a `checkpoint_migrations` table it manages entirely itself — it is explicitly documented as
+    safe/idempotent to call every time (it no-ops once already at the latest version), which is
+    why this is called here at startup rather than folded into an Alembic migration: Alembic would
+    have no way to know about (and would conflict with) that library-internal version tracking the
+    next time a new `langgraph-checkpoint-postgres` release adds a migration of its own.
+    """
+    global _checkpointer, _checkpointer_pool
+    async with _get_init_lock():
+        if _checkpointer is not None:
+            return _checkpointer
+        conn_string = _psycopg_conn_string(get_settings().database_url)
+        # `autocommit=True` matches what AsyncPostgresSaver.from_conn_string uses (and is
+        # required: its own schema-setup migrations run `CREATE INDEX CONCURRENTLY`, which
+        # Postgres refuses inside a multi-statement transaction block). `row_factory=dict_row` and
+        # `prepare_threshold=0` likewise match that reference implementation's connection setup.
+        pool = AsyncConnectionPool(
+            conn_string,
+            open=False,
+            max_size=CHECKPOINTER_POOL_MAX_SIZE,
+            kwargs={"autocommit": True, "row_factory": dict_row, "prepare_threshold": 0},
+        )
+        try:
+            await pool.open(wait=True)
+            checkpointer = AsyncPostgresSaver(conn=pool)
+            await checkpointer.setup()
+        except Exception:
+            logger.exception("checkpointer_setup_failed")
+            await pool.close()
+            raise
+        _checkpointer_pool = pool
+        _checkpointer = checkpointer
+        logger.info("checkpointer_ready backend=postgres pool_max_size=%d", CHECKPOINTER_POOL_MAX_SIZE)
+        return _checkpointer
+
+
+async def close_checkpointer() -> None:
+    """Close the checkpointer's connection pool and drop the cached compiled graph.
+
+    Called from app.main's FastAPI lifespan on shutdown, and from the test suite's per-test
+    teardown (tests/conftest.py): psycopg connections, like asyncpg's, cannot be reused across the
+    function-scoped event loop pytest-asyncio gives each test (see tests/conftest.py's module
+    docstring for the same constraint already documented there for the SQLAlchemy engine), so
+    tests close and recreate this pool once per test rather than sharing one across event loops.
+    """
+    global _checkpointer, _checkpointer_pool, _compiled_graph, _checkpointer_init_lock
+    if _checkpointer_pool is not None:
+        try:
+            await _checkpointer_pool.close()
+        except Exception:
+            logger.exception("checkpointer_pool_close_failed")
+    _checkpointer = None
+    _checkpointer_pool = None
+    _compiled_graph = None
+    _checkpointer_init_lock = None
 
 
 def _register_nodes(graph: StateGraph[SupportState]) -> None:
@@ -87,22 +185,31 @@ def _wire_edges(graph: StateGraph[SupportState]) -> None:
     graph.add_edge("await_human_decision", END)
 
 
-def build_support_graph() -> CompiledStateGraph:
+def build_support_graph(checkpointer: AsyncPostgresSaver) -> CompiledStateGraph:
     """Build and compile the support StateGraph. See module docstring for the topology."""
     graph: StateGraph[SupportState] = StateGraph(SupportState)
     _register_nodes(graph)
     _wire_edges(graph)
-    return graph.compile(checkpointer=_CHECKPOINTER)
+    return graph.compile(checkpointer=checkpointer)
 
 
 _compiled_graph: CompiledStateGraph | None = None
 
 
-def get_support_graph() -> CompiledStateGraph:
-    """Return the compiled support graph, building it once and reusing it thereafter."""
+async def get_support_graph() -> CompiledStateGraph:
+    """Return the compiled support graph, building it once (against the process-wide Postgres
+    checkpointer, see `get_checkpointer`) and reusing it thereafter.
+
+    Async (unlike its Phase 5-9 predecessor) because obtaining the checkpointer requires an async
+    connection-pool setup on first use. Every caller of this function is already inside an `async
+    def` (the graph itself runs entirely through `ainvoke`/`aget_state`), so this is not a
+    breaking change for any real call site — only test code that called it synchronously needed
+    an `await` added.
+    """
     global _compiled_graph
     if _compiled_graph is None:
-        _compiled_graph = build_support_graph()
+        checkpointer = await get_checkpointer()
+        _compiled_graph = build_support_graph(checkpointer)
     return _compiled_graph
 
 
@@ -195,7 +302,7 @@ async def run_support_workflow(
         customer_id, customer_message, conversation_history, thread_id=thread_id, ticket_id=ticket_id
     )
     thread_id = initial_state["thread_id"]
-    graph = get_support_graph()
+    graph = await get_support_graph()
     final_state: SupportState = await graph.ainvoke(initial_state, config=_thread_config(thread_id))
 
     if final_state.get("human_approval_required") and final_state.get("pending_actions"):
@@ -218,7 +325,7 @@ async def resume_support_workflow(thread_id: str, decision: dict[str, Any]) -> S
     Raises:
         InvalidStateError: if `thread_id` has no run currently paused waiting on a decision.
     """
-    graph = get_support_graph()
+    graph = await get_support_graph()
     config = _thread_config(thread_id)
 
     snapshot = await graph.aget_state(config)

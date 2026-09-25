@@ -81,7 +81,7 @@ async def start_conversation(
     runs in the background and its progress/result is available via GET .../{thread_id}.
     """
     require_customer_access(payload.customer_id, claims)
-    record = conversation_service.start_conversation(
+    record = await conversation_service.start_conversation(
         payload.customer_id, payload.message, payload.conversation_history
     )
     ticket_uuid = uuid.UUID(record.ticket_id) if record.ticket_id else None
@@ -100,7 +100,7 @@ async def read_conversation_status(
     Raises a 404 (via the app-wide `NotFoundError` handler) if `thread_id` is unknown, and a 403
     if the caller is neither staff nor the customer who started this conversation.
     """
-    record = conversation_service.get_conversation(thread_id)
+    record = await conversation_service.get_conversation(thread_id)
     if claims.role != AuthRole.STAFF and str(claims.customer_id) != record.customer_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=_FORBIDDEN_DETAIL)
     agent_runs = await observability_service.get_trace_for_thread(session, thread_id)

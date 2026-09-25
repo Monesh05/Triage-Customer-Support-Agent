@@ -76,5 +76,5 @@ async def test_full_pause_approve_resume_live(committed_session: AsyncSession) -
     assert payment_a.status == PaymentStatus.REFUNDED
 
     # Clean up this run's checkpointer thread so it doesn't linger across test invocations.
-    graph = get_support_graph()
+    graph = await get_support_graph()
     await graph.checkpointer.adelete_thread(thread_id)

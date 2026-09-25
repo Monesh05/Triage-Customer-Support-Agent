@@ -117,27 +117,29 @@ async def test_resume_with_approval_updates_conversation_status_to_completed(
     by app.services.conversation_service, exactly what GET /api/v1/conversations/{thread_id}
     returns to a polling customer.
     """
+    from app.database.session import get_session
+    from app.models.conversation import ConversationRecord
     from app.services import conversation_service
 
     _patch_agents(monkeypatch)
     paused_state = await run_support_workflow(_CUSTOMER_ID, "Why was I charged twice?")
     thread_id = paused_state["thread_id"]
 
-    # Register a conversation record the same way app.api.v1.conversations.start_conversation
-    # would have, so record_resumed_workflow (called by app.api.v1.approvals after a decision)
-    # has something to update.
-    conversation_service._conversations[thread_id] = conversation_service.ConversationRecord(
-        thread_id=thread_id, customer_id=_CUSTOMER_ID, status="awaiting_approval"
-    )
-    try:
-        decision = {"actions": [{"action_id": "n/a", "status": "approved"}]}
-        final_state = await resume_support_workflow(thread_id, decision)
-        conversation_service.record_resumed_workflow(thread_id, final_state)
+    # Persist a conversation record the same way app.services.conversation_service.
+    # start_conversation would have, so record_resumed_workflow (called by app.api.v1.approvals
+    # after a decision) has a row to update. Written directly to the `conversation_records` table
+    # (not the dict this module used before the 2026-09-25 persistence fix) so this test also
+    # doubles as proof that a resume updates the durable record, not just an in-memory one.
+    async with get_session() as session:
+        session.add(ConversationRecord(thread_id=thread_id, customer_id=_CUSTOMER_ID, status="awaiting_approval"))
+        await session.commit()
 
-        record = conversation_service.get_conversation(thread_id)
-        assert record.status == "completed"
-    finally:
-        conversation_service._conversations.pop(thread_id, None)
+    decision = {"actions": [{"action_id": "n/a", "status": "approved"}]}
+    final_state = await resume_support_workflow(thread_id, decision)
+    await conversation_service.record_resumed_workflow(thread_id, final_state)
+
+    record = await conversation_service.get_conversation(thread_id)
+    assert record.status == "completed"
 
 
 async def test_resume_with_rejection_produces_explanatory_response(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -158,3 +160,35 @@ async def test_resume_unknown_thread_raises_invalid_state(monkeypatch: pytest.Mo
 
     with pytest.raises(InvalidStateError):
         await resume_support_workflow("thread-that-was-never-paused", {"actions": []})
+
+
+async def test_resume_survives_a_simulated_backend_restart(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression test for the production-hardening fix this module exists to prove (README's
+    former "Production Deployment" gap, flagged in the Phase 5 and Phase 9 reports): a paused
+    thread must be resumable even after the backend process that paused it is gone.
+
+    A real OS-level process restart is exercised manually (see the task's verification step); this
+    test simulates the in-process consequence of one as closely as pytest allows — it discards
+    BOTH the cached compiled graph AND the checkpointer's connection pool
+    (app.graph.graph.close_checkpointer), exactly what happens to `app.graph.graph`'s module
+    globals when a fresh Python process starts. `resume_support_workflow` is then called against a
+    rebuilt-from-scratch checkpointer, so this can only pass if the paused run's state was truly
+    persisted to Postgres — nothing from the original run is left in memory.
+    """
+    from app.graph import graph as graph_module
+
+    _patch_agents(monkeypatch)
+    paused_state = await run_support_workflow(_CUSTOMER_ID, "Why was I charged twice?")
+    thread_id = paused_state["thread_id"]
+
+    await graph_module.close_checkpointer()
+    assert graph_module._checkpointer is None
+    assert graph_module._compiled_graph is None
+
+    decision = {"actions": [{"action_id": "n/a", "status": "approved"}]}
+    final_state = await resume_support_workflow(thread_id, decision)
+
+    assert final_state["approved_actions"]
+    assert final_state["executed_actions"]
+    assert "approved and completed" in final_state["final_response"]
+    assert final_state["human_approval_required"] is False

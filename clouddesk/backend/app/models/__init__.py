@@ -10,6 +10,7 @@ from app.models.account import Account
 from app.models.api_key import ApiKey
 from app.models.approval import ApprovalRequest
 from app.models.audit_log import AuditLog
+from app.models.conversation import ConversationRecord
 from app.models.customer import Customer
 from app.models.incident import ServiceIncident
 from app.models.invoice import Invoice
@@ -32,6 +33,7 @@ __all__ = [
     "ApiKey",
     "ApprovalRequest",
     "AuditLog",
+    "ConversationRecord",
     "Customer",
     "ServiceIncident",
     "Invoice",

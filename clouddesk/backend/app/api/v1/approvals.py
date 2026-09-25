@@ -84,7 +84,7 @@ async def _maybe_resume_thread(
             approval_request.thread_id, approval_request.id,
         )
         return False, None
-    conversation_service.record_resumed_workflow(approval_request.thread_id, final_state)
+    await conversation_service.record_resumed_workflow(approval_request.thread_id, final_state)
     return True, final_state.get("final_response")
 
 

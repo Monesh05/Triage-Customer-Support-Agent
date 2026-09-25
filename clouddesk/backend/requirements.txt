@@ -32,3 +32,18 @@ bcrypt==4.2.1
 # slowapi: per-IP/per-key rate limiting middleware for FastAPI/Starlette. Thin wrapper around the
 # well-established `limits` library. No known CVEs as of 2026-09-24.
 slowapi==0.1.9
+# Production hardening follow-up (spec section 27's Phase 10 report gap, closed 2026-09-25):
+# Postgres-backed LangGraph checkpointer so a paused/in-flight workflow thread survives a backend
+# restart (previously `MemorySaver`, in-process only). Pinned to 3.1.2, the first release after
+# CVE-2026-71433 (a namespace-prefix-matching information-disclosure issue in the Postgres/SQLite
+# checkpoint store implementations, fixed in 3.1.1) was patched. Requires
+# langgraph-checkpoint>=4.1,<5.0, satisfied by the langgraph-checkpoint 4.2.0 that langgraph==1.2.12
+# already pulls in (no downgrade). Uses the `psycopg` (v3) driver, not `asyncpg` (SQLAlchemy's
+# driver) — a separate connection pool against the same DATABASE_URL, not a second database.
+langgraph-checkpoint-postgres==3.1.2
+# psycopg[binary]: pinned above 3.2.10 (newer than the 3.2.0 floor langgraph-checkpoint-postgres
+# declares) because this Windows dev environment has no system libpq for psycopg's default
+# source build to link against; the binary wheel bundles its own libpq. No known CVEs as of
+# 2026-09-25.
+psycopg[binary]==3.2.10
+psycopg-pool==3.3.3
