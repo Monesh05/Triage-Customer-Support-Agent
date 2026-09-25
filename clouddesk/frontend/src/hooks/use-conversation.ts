@@ -56,6 +56,7 @@ export function useConversation(customerId: string) {
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasAnnouncedApproval = useRef(false);
+  const hasFinished = useRef(false);
   const pollAttempts = useRef(0);
   const historyRef = useRef<string[]>([]);
   const activeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -75,9 +76,20 @@ export function useConversation(customerId: string) {
   const pollConversation = useCallback(
     (threadId: string) => {
       const interval = setInterval(async () => {
+        // setInterval fires on a fixed clock regardless of whether the previous tick's request
+        // is still in flight, so a slow poll (e.g. cross-region to the backend) can leave two
+        // ticks racing to append the same terminal message before either reaches clearInterval
+        // below. hasFinished is a synchronous guard against that: only the first tick to observe
+        // a terminal result may act on it.
+        if (hasFinished.current) {
+          return;
+        }
         pollAttempts.current += 1;
         try {
           const status = await getConversationStatus(threadId);
+          if (hasFinished.current) {
+            return;
+          }
           setSteps(status.steps);
 
           if (status.status === "awaiting_approval" && !hasAnnouncedApproval.current) {
@@ -88,6 +100,7 @@ export function useConversation(customerId: string) {
           const terminalMessage = terminalMessageFor(status.status, status.final_response);
           const hasTimedOut = pollAttempts.current >= CONVERSATION_MAX_POLL_ATTEMPTS;
           if (terminalMessage !== null || hasTimedOut) {
+            hasFinished.current = true;
             clearInterval(interval);
             setIsBusy(false);
             setSteps([]);
@@ -96,6 +109,10 @@ export function useConversation(customerId: string) {
             historyRef.current.push(message);
           }
         } catch (cause) {
+          if (hasFinished.current) {
+            return;
+          }
+          hasFinished.current = true;
           clearInterval(interval);
           setIsBusy(false);
           setError(cause instanceof ApiError ? cause.detail : "Lost connection while checking status.");
@@ -110,6 +127,7 @@ export function useConversation(customerId: string) {
     async (text: string) => {
       setError(null);
       hasAnnouncedApproval.current = false;
+      hasFinished.current = false;
       pollAttempts.current = 0;
       appendMessage("customer", text);
       historyRef.current.push(text);
